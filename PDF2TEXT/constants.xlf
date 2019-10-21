@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<xliff version="1.0" xmlns:d4="http://www.4d.com/d4-ns">
+    <header>
+        <note>PDF2TEXT</note>
+    </header>
+    <group resname="themes">
+        <trans-unit id="" resname="7BC0B9191E9D4DCA8DDA04FB2EC57A78" translate="no">
+            <source>PDF2TEXT</source>
+        </trans-unit>
+    </group>
+    <group restype="x-4DK#" d4:groupName="7BC0B9191E9D4DCA8DDA04FB2EC57A78">
+    </group>
+</xliff>
