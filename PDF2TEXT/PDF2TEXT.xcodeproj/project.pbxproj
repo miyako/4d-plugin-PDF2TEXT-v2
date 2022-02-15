@@ -12,7 +12,7 @@
 		18B684F906944F2000CC6A1E /* Flags.h in Headers */ = {isa = PBXBuildFile; fileRef = 18B684F206944F2000CC6A1E /* Flags.h */; };
 		18B684FA06944F2000CC6A1E /* PrivateTypes.h in Headers */ = {isa = PBXBuildFile; fileRef = 18B684F306944F2000CC6A1E /* PrivateTypes.h */; };
 		18B684FB06944F2000CC6A1E /* PublicTypes.h in Headers */ = {isa = PBXBuildFile; fileRef = 18B684F406944F2000CC6A1E /* PublicTypes.h */; };
-		18B684FF06944F8800CC6A1E /* 4DPlugin-PDF2TEXT.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18B684FE06944F8800CC6A1E /* 4DPlugin-PDF2TEXT.cpp */; };
+		18B684FF06944F8800CC6A1E /* 4DPlugin-PDF2TEXT.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18B684FE06944F8800CC6A1E /* 4DPlugin-PDF2TEXT.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
 		8D01CCCA0486CAD60068D4B7 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C167DFE841241C02AAC07 /* InfoPlist.strings */; };
 		D11628DD235DD7B600024924 /* libcairo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D11628D9235DD7B600024924 /* libcairo.a */; };
 		D11628DE235DD7B600024924 /* libffi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D11628DA235DD7B600024924 /* libffi.a */; };
@@ -39,13 +39,13 @@
 		D13116A91A03ACB700DE1322 /* 4DPluginAPI.c in Sources */ = {isa = PBXBuildFile; fileRef = D13116A81A03ACB700DE1322 /* 4DPluginAPI.c */; settings = {COMPILER_FLAGS = "-Wno-multichar"; }; };
 		D134D4AC1A030BA0008D14EF /* manifest.json in CopyFiles */ = {isa = PBXBuildFile; fileRef = D134D4A91A030B06008D14EF /* manifest.json */; };
 		D1A4D1F3235D72180028B5A6 /* 4DPlugin-JSON.h in Headers */ = {isa = PBXBuildFile; fileRef = D1A4D1F1235D72180028B5A6 /* 4DPlugin-JSON.h */; };
-		D1A4D1F4235D72180028B5A6 /* 4DPlugin-JSON.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1A4D1F2235D72180028B5A6 /* 4DPlugin-JSON.cpp */; };
-		D1A4D1FC235D72320028B5A6 /* C_BLOB.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1A4D1F5235D72320028B5A6 /* C_BLOB.cpp */; };
+		D1A4D1F4235D72180028B5A6 /* 4DPlugin-JSON.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1A4D1F2235D72180028B5A6 /* 4DPlugin-JSON.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		D1A4D1FC235D72320028B5A6 /* C_BLOB.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1A4D1F5235D72320028B5A6 /* C_BLOB.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
 		D1A4D1FD235D72320028B5A6 /* C_TYPES.h in Headers */ = {isa = PBXBuildFile; fileRef = D1A4D1F6235D72320028B5A6 /* C_TYPES.h */; };
 		D1A4D1FE235D72320028B5A6 /* C_BLOB.h in Headers */ = {isa = PBXBuildFile; fileRef = D1A4D1F7235D72320028B5A6 /* C_BLOB.h */; };
-		D1A4D1FF235D72320028B5A6 /* C_LONGINT.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1A4D1F8235D72320028B5A6 /* C_LONGINT.cpp */; };
+		D1A4D1FF235D72320028B5A6 /* C_LONGINT.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1A4D1F8235D72320028B5A6 /* C_LONGINT.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
 		D1A4D200235D72320028B5A6 /* C_TEXT.h in Headers */ = {isa = PBXBuildFile; fileRef = D1A4D1F9235D72320028B5A6 /* C_TEXT.h */; };
-		D1A4D201235D72320028B5A6 /* C_TEXT.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1A4D1FA235D72320028B5A6 /* C_TEXT.cpp */; };
+		D1A4D201235D72320028B5A6 /* C_TEXT.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1A4D1FA235D72320028B5A6 /* C_TEXT.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
 		D1A4D202235D72320028B5A6 /* C_LONGINT.h in Headers */ = {isa = PBXBuildFile; fileRef = D1A4D1FB235D72320028B5A6 /* C_LONGINT.h */; };
 		D1D53A7A27BBF615002AC9FD /* libpoppler-glib.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D1D53A7727BBF605002AC9FD /* libpoppler-glib.a */; };
 		D1D53A7B27BBF615002AC9FD /* libpoppler.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D1D53A7927BBF605002AC9FD /* libpoppler.a */; };
@@ -864,6 +864,7 @@
 					"$(SRCROOT)/test/Plugins/$(PROJECT_NAME).bundle/Contents/MacOS",
 				);
 				LIBRARY_STYLE = Bundle;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MARKETING_VERSION = 1.0.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
@@ -916,6 +917,7 @@
 					"$(SRCROOT)/test/Plugins/$(PROJECT_NAME).bundle/Contents/MacOS",
 				);
 				LIBRARY_STYLE = Bundle;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MARKETING_VERSION = 1.0.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
@@ -966,6 +968,7 @@
 					"$(SRCROOT)/test/Plugins/$(PROJECT_NAME).bundle/Contents/MacOS",
 				);
 				LIBRARY_STYLE = Bundle;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MARKETING_VERSION = 1.0.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
@@ -1027,7 +1030,7 @@
 					"$(PROJECT_DIR)/a",
 					"$(SRCROOT)/test/Plugins/$(PROJECT_NAME).bundle/Contents/MacOS",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				OBJROOT = "$(SRCROOT)/build";
 				SDKROOT = macosx;
 				SYMROOT = "$(SRCROOT)/test/Plugins";
@@ -1077,7 +1080,7 @@
 					"$(PROJECT_DIR)/a",
 					"$(SRCROOT)/test/Plugins/$(PROJECT_NAME).bundle/Contents/MacOS",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				OBJROOT = "$(SRCROOT)/build";
 				SDKROOT = macosx;
 				SYMROOT = "$(SRCROOT)/test/Plugins";
@@ -1127,7 +1130,7 @@
 					"$(PROJECT_DIR)/a",
 					"$(SRCROOT)/test/Plugins/$(PROJECT_NAME).bundle/Contents/MacOS",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				SDKROOT = macosx;
 				SYMROOT = "$(SRCROOT)/test/Plugins";
 			};
