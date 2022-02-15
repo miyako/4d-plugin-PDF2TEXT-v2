@@ -22,7 +22,7 @@ xml:=PDF to XML(pdf;options)
 |options.lastPage|Number|`-l` このページまで (`0`)|
 |options.ownerPassword|Text|`-opw` オーナーパスワード|
 |options.userPassword|Text|`-upw` ユーザーパスワード|
-|options.scale|Number|`-zoom` 座標係数 (`.1.0`)|
+|options.scale|Number|`-zoom` 拡大率 (`.1.0`) `0.5`⇢`3.0`|
 |options.noRoundedCoordinates|Boolean|`-noroundcoord` 座標を丸めない (`true`)|
 |options.wordBreakThreshold|Number|`-wbt` (`10`)|
 |xml|BLOB|エンコーディングは固定値 (`UTF-8`)|
