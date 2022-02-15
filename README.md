@@ -15,13 +15,14 @@ xml:=PDF to XML(pdf;options)
 |-|-|-|
 |pdf|BLOB||
 |options|Object||
-|options.start|Number|`-f` このページから (`1`)|
-|options.end|Number|`-l` このページまで (`1`)|
-|options.owner|Text|`-opw` オーナーパスワード|
-|options.user|Text|`-upw` ユーザーパスワード|
-|options.imageFormat|Text|`-fmt` 画像形式 (`.png`) `.jpg`|
-|options.zoom|Number|`-zoom` 座標係数 (`.1.5`)|
-|options.round|Boolean|!`-noroundcoord` 座標を丸める (`true`)|
+|options.first|Number|`-f` このページから (`1`)|
+|options.last|Number|`-l` このページまで (`0`)|
+|options.ownerPassword|Text|`-opw` オーナーパスワード|
+|options.userPassword|Text|`-upw` ユーザーパスワード|
+|options.format|Text|`-fmt` 画像形式 (`.png`) `.jpg`|
+|options.scale|Number|`-zoom` 座標係数 (`.1.5`)|
+|options.noRoundedCoordinates|Boolean|!`-noroundcoord` 座標を丸めない (`false`)|
+|options.wordBreakThreshold|Number|`-wbt`|
 |xml|BLOB||
 
 #### 常に有効なオプション
@@ -36,11 +37,10 @@ xml:=PDF to XML(pdf;options)
 
 #### 常に無効なオプション
 
-* `-h` `-?` `-help` `--help`
+* `-h`
 * `-p`
 * `-s`
 * `-i`
-* `-v`
 * `-stdout`
 * `-nodrm`
 * `-fontfullname`
