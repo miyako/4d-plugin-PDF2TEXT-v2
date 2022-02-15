@@ -26,12 +26,19 @@ text:=PDF Get text(pdf;options)
 ### コールバックメソッドv1
 
 ```4d
-#DECLARE(count:Integer;total:Integer;idx:Integer;text:Text)->abort:Boolean
+#DECLARE(position:Integer;total:Integer;page:Integer;text:Text)->abort:Boolean
 ```
 
 ### コールバックメソッドv2
 
 ```4d
-#DECLARE(Object)->abort:Boolean
+#DECLARE(info:Object)->abort:Boolean
 ```
 
+|パラメーター|データ型|説明|
+|-|-|-|
+|info|Object||
+|info.position|Number||
+|info.total|Number||
+|info.page|Number||
+|info.text|Text||
