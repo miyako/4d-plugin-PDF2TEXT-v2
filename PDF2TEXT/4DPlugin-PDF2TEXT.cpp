@@ -330,7 +330,8 @@ static void PDF_Get_XML(PA_PluginParameters params) {
                                         keywords ? keywords->c_str() : nullptr,
                                         subject ? subject->c_str() : nullptr,
                                         date ? date->c_str() : nullptr,
-                                        rawOrder, firstPage, doOutline);
+                                        rawOrder, firstPage, doOutline,
+                                        wordBreakThreshold, noRoundedCoordinates);
             delete docTitle;
             if (author) {
                 delete author;
