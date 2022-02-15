@@ -22,7 +22,7 @@ xml:=PDF to XML(pdf;options)
 |options.format|Text|`-fmt` 画像形式 (`.png`) `.jpg`|
 |options.scale|Number|`-zoom` 座標係数 (`.1.5`)|
 |options.noRoundedCoordinates|Boolean|!`-noroundcoord` 座標を丸めない (`false`)|
-|options.wordBreakThreshold|Number|`-wbt`|
+|options.wordBreakThreshold|Number|`-wbt` (`10`)|
 |xml|BLOB||
 
 #### 常に有効なオプション
