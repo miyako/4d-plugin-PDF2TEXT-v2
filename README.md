@@ -20,6 +20,8 @@ xml:=PDF to XML(pdf;options)
 |options.owner|Text|`-opw` オーナーパスワード|
 |options.user|Text|`-upw` ユーザーパスワード|
 |options.imageFormat|Text|`-fmt` 画像形式 (`.png`) `.jpg`|
+|options.zoom|Number|`-zoom` 座標係数 (`.1.5`)|
+|options.round|Boolean|!`-noroundcoord` 座標を丸める (`true`)|
 |xml|BLOB||
 
 #### 常に有効なオプション
