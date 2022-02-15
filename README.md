@@ -17,8 +17,8 @@ xml:=PDF to XML(pdf;options)
 |options|Object||
 |options.start|Number|`-f` このページから|
 |options.end|Number|`-l` このページまで|
-|options.ownerPassword|Number|`-opw` オーナーパスワード|
-|options.userPassword|Number|`-upw` ユーザーパスワード|
+|options.ownerPassword|Text|`-opw` オーナーパスワード|
+|options.userPassword|Text|`-upw` ユーザーパスワード|
 
 #### 常に有効なオプション
 
