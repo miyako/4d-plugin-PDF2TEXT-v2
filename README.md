@@ -15,10 +15,11 @@ xml:=PDF to XML(pdf;options)
 |-|-|-|
 |pdf|BLOB||
 |options|Object||
-|options.start|Number|`-f` このページから|
-|options.end|Number|`-l` このページまで|
+|options.start|Number|`-f` このページから (`1`)|
+|options.end|Number|`-l` このページまで (`1`)|
 |options.owner|Text|`-opw` オーナーパスワード|
 |options.user|Text|`-upw` ユーザーパスワード|
+|options.imageFormat|Text|`-fmt` 画像形式 (`.png`) `.jpg`|
 |xml|BLOB||
 
 #### 常に有効なオプション
@@ -37,4 +38,7 @@ xml:=PDF to XML(pdf;options)
 * `-p`
 * `-s`
 * `-i`
+* `-v`
 * `-stdout`
+* `-nodrm`
+* `-fontfullname`
