@@ -112,7 +112,7 @@ class HtmlPage
 {
 public:
     // Constructor.
-    explicit HtmlPage(bool rawOrder);
+    explicit HtmlPage(bool rawOrder, double wordBreakThreshold, bool noRoundedCoordinates);
 
     // Destructor.
     ~HtmlPage();
@@ -161,7 +161,9 @@ private:
 
     double fontSize; // current font size
     bool rawOrder; // keep strings in content stream order
-
+    double wordBreakThreshold;
+    bool noRoundedCoordinates;
+    
     HtmlString *curStr; // currently active string
 
     HtmlString *yxStrings; // strings in y-major order
@@ -219,7 +221,7 @@ public:
     // 8-bit ISO Latin-1.  <useASCII7> should also be set for Japanese
     // (EUC-JP) text.  If <rawOrder> is true, the text is kept in content
     // stream order.
-    HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrder, int firstPage = 1, bool outline = false);
+    HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrder, int firstPage = 1, bool outline = false, double wordBreakThresholdA = 1, bool noRoundedCoordinatesA = true);
 
     // Destructor.
     ~HtmlOutputDev() override;

@@ -128,9 +128,6 @@ public:
 
 SplashOutputDevNoText::~SplashOutputDevNoText() = default;
 
-static bool noRoundedCoordinates = true;
-static double wordBreakThreshold = 10;
-
 #if VERSIONMAC
 static void convert_path(std::string& path) {
     
@@ -150,17 +147,15 @@ static void PDF_Get_XML(PA_PluginParameters params) {
     int firstPage = 1;
     int lastPage = 0;
     
-    //TODO: make local
-    wordBreakThreshold = 10;
-    noRoundedCoordinates = true;
+    double wordBreakThreshold = 1;
+    bool noRoundedCoordinates = true;
     
     std::string ownerPassword;
     std::string userPassword;
     
-    double scale = 1.5;
+    double scale = 1.0;
     SplashImageFileFormat format = splashFormatPng;
     
-    //fixed:true
 //    bool xml = true;
 //    bool printVersion = true;
 //    bool errQuiet = true;
@@ -168,8 +163,6 @@ static void PDF_Get_XML(PA_PluginParameters params) {
 //    bool showHidden = true;
 //    bool noframes = true;
 //    bool noMerge = true;
-
-    //fixed:false
 //    bool dataUrls = false;
 //    bool printHelp = false;
 //    bool printHtml = false;
@@ -573,21 +566,6 @@ static inline bool IS_CLOSER(float x, float y, float z)
     return std::fabs((x) - (y)) < std::fabs((x) - (z));
 }
 
-//extern bool complexMode;
-//extern bool singleHtml;
-//extern bool dataUrls;
-//extern bool ignore;
-//extern bool printCommands;
-//extern bool printHtml;
-//extern bool noframes;
-//extern bool stout;
-//extern bool xml;
-//extern bool noRoundedCoordinates;
-//extern bool showHidden;
-//extern bool noMerge;
-
-//extern double wordBreakThreshold;
-
 static bool debug = false;
 static GooString *gstr_buff0 = nullptr; // a workspace in which I format strings
 
@@ -742,8 +720,10 @@ void HtmlString::endString()
 // HtmlPage
 //------------------------------------------------------------------------
 
-HtmlPage::HtmlPage(bool rawOrderA)
+HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoordinatesA)
 {
+    noRoundedCoordinates = noRoundedCoordinatesA;
+    wordBreakThreshold = wordBreakThresholdA;
     rawOrder = rawOrderA;
     curStr = nullptr;
     yxStrings = nullptr;
@@ -1539,7 +1519,7 @@ void HtmlOutputDev::doFrame(int firstPage)
     fclose(fContentsFrame);
 }
 
-HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrderA, int firstPage, bool outline)
+HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrderA, int firstPage, bool outline, double wordBreakThresholdA, bool noRoundedCoordinatesA)
 {
     bool complexMode = true;
     bool xml = true;
@@ -1561,7 +1541,7 @@ HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char
     // pageNum=firstPage;
     // open file
     needClose = false;
-    pages = new HtmlPage(rawOrder);
+    pages = new HtmlPage(rawOrder, wordBreakThresholdA, noRoundedCoordinatesA);
 
     glMetaVars.push_back(new HtmlMetaVar("generator", "pdftohtml 0.36"));
     if (author)
