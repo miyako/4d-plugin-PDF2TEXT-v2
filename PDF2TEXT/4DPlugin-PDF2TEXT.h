@@ -31,6 +31,8 @@
 #if VERSIONWIN
 #include <config.h>
 #include <poppler-config.h>
+#endif
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstddef>
@@ -71,6 +73,7 @@
 #    include <png.h>
 #endif
 
+#if VERSIONWIN
 static void u16_to_u8(CUTF16String& u16, std::string& u8);
 static void u8_to_u16(std::string& u8, CUTF16String& u16);
 #endif
