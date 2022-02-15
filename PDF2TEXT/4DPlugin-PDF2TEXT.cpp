@@ -15,9 +15,7 @@
 #if VERSIONWIN
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
-    glib_DllMain(hinstDLL, fdwReason, lpvReserved);
-    gio_DllMain(hinstDLL, fdwReason, lpvReserved);
-    gobject_DllMain(hinstDLL, fdwReason, lpvReserved);
+	poppler_DllMain(hinstDLL, fdwReason, lpvReserved);
     
     return TRUE;
 }
@@ -178,7 +176,11 @@ static void PDF_Get_XML(PA_PluginParameters params) {
     globalParams->setErrQuiet(false);
     globalParams->setTextEncoding("UTF-8");
 
+#if VERSIONMAC
     std::unique_ptr<PDFDoc> doc;
+#else
+	PDFDoc *doc = nullptr;
+#endif
 
     PA_Handle h = PA_GetBlobHandleParameter(params, 1);
     
@@ -430,7 +432,11 @@ static GooString *getInfoDate(Dict *infoDict, const char *key)
 
     obj = infoDict->lookup(key);
     if (obj.isString()) {
+#if VERSIONMAC
         const GooString *s = obj.getString();
+#else
+		const char *s = obj.getString()->c_str();
+#endif
         // TODO do something with the timezone info
         if (parseDateString(s, &year, &mon, &day, &hour, &min, &sec, &tz, &tz_hour, &tz_minute)) {
             tmStruct.tm_year = year - 1900;
@@ -510,37 +516,6 @@ static GooString *getInfoDate(Dict *infoDict, const char *key)
 // came with your tarball or type make ChangeLog if you are building from git
 //
 //========================================================================
-
-#include "config.h"
-#include <cstdio>
-#include <cstdlib>
-#include <cstdarg>
-#include <cstddef>
-#include <cctype>
-#include <cmath>
-#include <iostream>
-#include "goo/GooString.h"
-#include "goo/gbasename.h"
-#include "goo/gbase64.h"
-#include "goo/gbasename.h"
-#include "UnicodeMap.h"
-#include "goo/gmem.h"
-#include "Error.h"
-#include "GfxState.h"
-#include "Page.h"
-#include "Annot.h"
-#include "PNGWriter.h"
-#include "GlobalParams.h"
-#include "HtmlOutputDev.h"
-#include "HtmlFonts.h"
-#include "HtmlUtils.h"
-#include "InMemoryFile.h"
-#include "Outline.h"
-#include "PDFDoc.h"
-
-#ifdef ENABLE_LIBPNG
-#    include <png.h>
-#endif
 
 #define DEBUG __FILE__ << ": " << __LINE__ << ": DEBUG: "
 
@@ -732,6 +707,9 @@ HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoo
     yxCur1 = yxCur2 = nullptr;
     fonts = new HtmlFontAccu();
     links = new HtmlLinks();
+#if VERSIONWIN
+	imgList = new std::vector<HtmlImage *>();
+#endif
     pageWidth = 0;
     pageHeight = 0;
     fontsPageMarker = 0;
@@ -745,9 +723,17 @@ HtmlPage::~HtmlPage()
     delete DocName;
     delete fonts;
     delete links;
+#if VERSIONMAC
     for (auto entry : imgList) {
         delete entry;
     }
+#endif
+#if VERSIONWIN
+	for (auto entry : *imgList) {
+		delete entry;
+	}
+	delete imgList;
+#endif
 }
 
 void HtmlPage::updateFont(GfxState *state)
@@ -1079,8 +1065,14 @@ void HtmlPage::coalesce()
             }
 
             /* fix <i>, <b> if str1 and str2 differ and handle switch of links */
-            const HtmlLink *hlink1 = str1->getLink();
+#if VERSIONMAC
+			const HtmlLink *hlink1 = str1->getLink();
             const HtmlLink *hlink2 = str2->getLink();
+#endif
+#if VERSIONWIN
+			HtmlLink *hlink1 = str1->getLink();
+			HtmlLink *hlink2 = str2->getLink();
+#endif
             bool switch_links = !hlink1 || !hlink2 || !hlink1->isEqualDest(*hlink2);
             bool finish_a = switch_links && hlink1 != nullptr;
             bool finish_italic = hfont1->isItalic() && (!hfont2->isItalic() || finish_a);
@@ -1162,19 +1154,38 @@ void HtmlPage::dumpAsXML(FILE *f, int page)
         delete fontCSStyle;
     }
 
-    for (auto ptr : imgList) {
-        auto img = static_cast<HtmlImage *>(ptr);
-        if (!noRoundedCoordinates) {
-            fprintf(f, "<image top=\"%d\" left=\"%d\" ", xoutRound(img->yMin), xoutRound(img->xMin));
-            fprintf(f, "width=\"%d\" height=\"%d\" ", xoutRound(img->xMax - img->xMin), xoutRound(img->yMax - img->yMin));
-        } else {
-            fprintf(f, "<image top=\"%f\" left=\"%f\" ", img->yMin, img->xMin);
-            fprintf(f, "width=\"%f\" height=\"%f\" ", img->xMax - img->xMin, img->yMax - img->yMin);
-        }
-        fprintf(f, "src=\"%s\"/>\n", img->fName->c_str());
-        delete img;
-    }
-    imgList.clear();
+#if VERSIONMAC
+	for (auto ptr : imgList) {
+		auto img = static_cast<HtmlImage *>(ptr);
+		if (!noRoundedCoordinates) {
+			fprintf(f, "<image top=\"%d\" left=\"%d\" ", xoutRound(img->yMin), xoutRound(img->xMin));
+			fprintf(f, "width=\"%d\" height=\"%d\" ", xoutRound(img->xMax - img->xMin), xoutRound(img->yMax - img->yMin));
+		}
+		else {
+			fprintf(f, "<image top=\"%f\" left=\"%f\" ", img->yMin, img->xMin);
+			fprintf(f, "width=\"%f\" height=\"%f\" ", img->xMax - img->xMin, img->yMax - img->yMin);
+		}
+		fprintf(f, "src=\"%s\"/>\n", img->fName->c_str());
+		delete img;
+}
+	imgList.clear();
+#endif
+#if VERSIONWIN
+	for (auto ptr : *imgList) {
+		auto img = static_cast<HtmlImage *>(ptr);
+		if (!noRoundedCoordinates) {
+			fprintf(f, "<image top=\"%d\" left=\"%d\" ", xoutRound(img->yMin), xoutRound(img->xMin));
+			fprintf(f, "width=\"%d\" height=\"%d\" ", xoutRound(img->xMax - img->xMin), xoutRound(img->yMax - img->yMin));
+		}
+		else {
+			fprintf(f, "<image top=\"%f\" left=\"%f\" ", img->yMin, img->xMin);
+			fprintf(f, "width=\"%f\" height=\"%f\" ", img->xMax - img->xMin, img->yMax - img->yMin);
+		}
+		fprintf(f, "src=\"%s\"/>\n", img->fName->c_str());
+		delete img;
+	}
+	imgList->clear();
+#endif
 
     for (HtmlString *tmp = yxStrings; tmp; tmp = tmp->yxNext) {
         if (tmp->htext) {
@@ -1371,21 +1382,40 @@ void HtmlPage::dump(FILE *f, int pageNum, const std::vector<std::string> &backgr
     } else {
         fprintf(f, "<a name=%d></a>", pageNum);
         // Loop over the list of image names on this page
-        for (auto ptr : imgList) {
-            auto img = static_cast<HtmlImage *>(ptr);
+#if VERSIONMAC
+		for (auto ptr : imgList) {
+			auto img = static_cast<HtmlImage *>(ptr);
 
-            // see printCSS() for class names
-            const char *styles[4] = { "", " class=\"xflip\"", " class=\"yflip\"", " class=\"xyflip\"" };
-            int style_index = 0;
-            if (img->xMin > img->xMax)
-                style_index += 1; // xFlip
-            if (img->yMin > img->yMax)
-                style_index += 2; // yFlip
+			// see printCSS() for class names
+			const char *styles[4] = { "", " class=\"xflip\"", " class=\"yflip\"", " class=\"xyflip\"" };
+			int style_index = 0;
+			if (img->xMin > img->xMax)
+				style_index += 1; // xFlip
+			if (img->yMin > img->yMax)
+				style_index += 2; // yFlip
 
-            fprintf(f, "<img%s src=\"%s\"/><br/>\n", styles[style_index], img->fName->c_str());
-            delete img;
-        }
-        imgList.clear();
+			fprintf(f, "<img%s src=\"%s\"/><br/>\n", styles[style_index], img->fName->c_str());
+			delete img;
+	}
+		imgList.clear();
+#endif
+#if VERSIONWIN
+		for (auto ptr : *imgList) {
+			auto img = static_cast<HtmlImage *>(ptr);
+
+			// see printCSS() for class names
+			const char *styles[4] = { "", " class=\"xflip\"", " class=\"yflip\"", " class=\"xyflip\"" };
+			int style_index = 0;
+			if (img->xMin > img->xMax)
+				style_index += 1; // xFlip
+			if (img->yMin > img->yMax)
+				style_index += 2; // yFlip
+
+			fprintf(f, "<img%s src=\"%s\"/><br/>\n", styles[style_index], img->fName->c_str());
+			delete img;
+		}
+		imgList->clear();
+#endif
 
         GooString *str;
         for (HtmlString *tmp = yxStrings; tmp; tmp = tmp->yxNext) {
@@ -1437,8 +1467,14 @@ void HtmlPage::setDocName(const char *fname)
 
 void HtmlPage::addImage(GooString *fname, GfxState *state)
 {
+#if VERSIONMAC
     HtmlImage *img = new HtmlImage(fname, state);
     imgList.push_back(img);
+#endif
+#if VERSIONWIN
+	HtmlImage *img = new HtmlImage(fname, state);
+    imgList->push_back(img);
+#endif
 }
 
 //------------------------------------------------------------------------
@@ -1544,6 +1580,7 @@ HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char
     needClose = false;
     pages = new HtmlPage(rawOrder, wordBreakThresholdA, noRoundedCoordinatesA);
 
+#if VERSIONMAC
     glMetaVars.push_back(new HtmlMetaVar("generator", "pdftohtml 0.36"));
     if (author)
         glMetaVars.push_back(new HtmlMetaVar("author", author));
@@ -1553,7 +1590,19 @@ HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char
         glMetaVars.push_back(new HtmlMetaVar("date", date));
     if (subject)
         glMetaVars.push_back(new HtmlMetaVar("subject", subject));
-
+#endif
+#if VERSIONWIN
+	glMetaVars = new std::vector<HtmlMetaVar *>();
+	glMetaVars->push_back(new HtmlMetaVar("generator", "pdftohtml 0.36"));
+	if (author)
+		glMetaVars->push_back(new HtmlMetaVar("author", author));
+	if (keywords)
+		glMetaVars->push_back(new HtmlMetaVar("keywords", keywords));
+	if (date)
+		glMetaVars->push_back(new HtmlMetaVar("date", date));
+	if (subject)
+		glMetaVars->push_back(new HtmlMetaVar("subject", subject));
+#endif
     maxPageWidth = 0;
     maxPageHeight = 0;
 
@@ -1644,9 +1693,17 @@ HtmlOutputDev::~HtmlOutputDev()
     delete Docname;
     delete docTitle;
 
-    for (auto entry : glMetaVars) {
-        delete entry;
-    }
+#if VERSIONMAC
+	for (auto entry : glMetaVars) {
+		delete entry;
+}
+#endif
+#if VERSIONWIN
+	for (auto entry : *glMetaVars) {
+		delete entry;
+	}
+	delete glMetaVars;
+#endif
 
     if (fContentsFrame) {
         fputs("</body>\n</html>\n", fContentsFrame);
@@ -1710,10 +1767,19 @@ void HtmlOutputDev::endPage()
 {
     bool stout = false;
     
-    std::unique_ptr<Links> linksList = docPage->getLinks();
-    for (int i = 0; i < linksList->getNumLinks(); ++i) {
-        doProcessLink(linksList->getLink(i));
-    }
+#if VERSIONMAC
+	std::unique_ptr<Links> linksList = docPage->getLinks();
+	for (int i = 0; i < linksList->getNumLinks(); ++i) {
+		doProcessLink(linksList->getLink(i));
+	}
+#endif
+#if VERSIONWIN
+	Links *linksList = docPage->getLinks();
+	for (int i = 0; i < linksList->getNumLinks(); ++i) {
+		doProcessLink(linksList->getLink(i));
+	}
+	delete linksList;
+#endif
 
     pages->conv();
     pages->coalesce();
@@ -2109,11 +2175,20 @@ void HtmlOutputDev::dumpMetaVars(FILE *file)
 {
     GooString *var;
 
+#if VERSIONMAC
     for (const HtmlMetaVar *t : glMetaVars) {
         var = t->toString();
         fprintf(file, "%s\n", var->c_str());
         delete var;
     }
+#endif
+#if VERSIONWIN
+	for (const HtmlMetaVar *t : *glMetaVars) {
+        var = t->toString();
+        fprintf(file, "%s\n", var->c_str());
+        delete var;
+    }
+#endif
 }
 
 bool HtmlOutputDev::dumpDocOutline(PDFDoc *doc)
@@ -2339,13 +2414,6 @@ int HtmlOutputDev::getOutlinePageNum(OutlineItem *item)
 // came with your tarball or type make ChangeLog if you are building from git
 //
 //========================================================================
-
-#include "HtmlFonts.h"
-#include "HtmlUtils.h"
-#include "GlobalParams.h"
-#include "UnicodeMap.h"
-#include "GfxFont.h"
-#include <cstdio>
 
 namespace {
 
@@ -2699,10 +2767,6 @@ GooString *HtmlFontAccu::CSStyle(int i, int j)
 //
 //========================================================================
 
-#include "HtmlLinks.h"
-
-//extern bool xml;
-
 HtmlLink::HtmlLink(const HtmlLink &x)
 {
     Xmin = x.Xmin;
@@ -2784,7 +2848,12 @@ static GooString *EscapeSpecialChars(GooString *s)
     return tmp ? tmp : s;
 }
 
+#if VERSIONMAC
 GooString *HtmlLink::getLinkStart() const
+#endif
+#if VERSIONWIN
+GooString *HtmlLink::getLinkStart()
+#endif
 {
     bool xml = true;
     
@@ -2808,13 +2877,22 @@ GooString *HtmlLink::getLinkStart() const
   return tmp;
   }*/
 
-HtmlLinks::HtmlLinks() { }
+HtmlLinks::HtmlLinks() {
+#if VERSIONWIN
+	accu = new std::vector<HtmlLink>();
+#endif
+}
 
-HtmlLinks::~HtmlLinks() { }
+HtmlLinks::~HtmlLinks() { 
+#if VERSIONWIN
+	delete accu;
+	accu = nullptr;
+#endif
+}
 
 bool HtmlLinks::inLink(double xmin, double ymin, double xmax, double ymax, int &p) const
 {
-
+#if VERSIONMAC
     for (std::vector<HtmlLink>::const_iterator i = accu.begin(); i != accu.end(); ++i) {
         if (i->inLink(xmin, ymin, xmax, ymax)) {
             p = (i - accu.begin());
@@ -2822,12 +2900,30 @@ bool HtmlLinks::inLink(double xmin, double ymin, double xmax, double ymax, int &
         }
     }
     return false;
+#endif
+#if VERSIONWIN
+	for (std::vector<HtmlLink>::iterator i = accu->begin(); i != accu->end(); ++i) {
+		if (i->inLink(xmin, ymin, xmax, ymax)) {
+			p = (i - accu->begin());
+			return true;
+		}
+	}
+	return false;
+#endif
 }
 
+#if VERSIONMAC
 const HtmlLink *HtmlLinks::getLink(int i) const
 {
-    return &accu[i];
+	return &accu[i];
 }
+#endif
+#if VERSIONWIN
+HtmlLink *HtmlLinks::getLink(int i) const
+{
+	return &(*accu)[i];
+}
+#endif
 
 #pragma mark InMemoryFile.cc
 
@@ -2847,11 +2943,6 @@ const HtmlLink *HtmlLinks::getLink(int i) const
 // Copyright (C) 2020 Albert Astals Cid <aacid@kde.org>
 //
 //========================================================================
-
-#include "InMemoryFile.h"
-
-#include <cstring>
-#include <sstream>
 
 InMemoryFile::InMemoryFile() : iohead(0), fptr(nullptr) { }
 
@@ -2913,5 +3004,60 @@ FILE *InMemoryFile::open(const char *mode)
 #else
     fprintf(stderr, "If you can read this, your platform does not support the features necessary to achieve your goals.");
     return nullptr;
+#endif
+}
+
+static void u16_to_u8(CUTF16String& u16, std::string& u8) {
+
+#ifdef _WIN32
+	int len = WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)u16.c_str(), u16.length(), NULL, 0, NULL, NULL);
+
+	if (len) {
+		std::vector<uint8_t> buf(len + 1);
+		if (WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)u16.c_str(), u16.length(), (LPSTR)&buf[0], len, NULL, NULL)) {
+			u8 = std::string((const char *)&buf[0]);
+		}
+	}
+	else {
+		u8 = std::string((const char *)"");
+	}
+
+#else
+	CFStringRef str = CFStringCreateWithCharacters(kCFAllocatorDefault, (const UniChar *)u16.c_str(), u16.length());
+	if (str) {
+		size_t size = CFStringGetMaximumSizeForEncoding(CFStringGetLength(str), kCFStringEncodingUTF8) + sizeof(uint8_t);
+		std::vector<uint8_t> buf(size);
+		CFIndex len = 0;
+		CFStringGetBytes(str, CFRangeMake(0, CFStringGetLength(str)), kCFStringEncodingUTF8, 0, true, (UInt8 *)&buf[0], size, &len);
+		u8 = std::string((const char *)&buf[0], len);
+		CFRelease(str);
+	}
+#endif
+}
+
+static void u8_to_u16(std::string& u8, CUTF16String& u16) {
+
+#ifdef _WIN32
+	int len = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)u8.c_str(), u8.length(), NULL, 0);
+
+	if (len) {
+		std::vector<uint8_t> buf((len + 1) * sizeof(PA_Unichar));
+		if (MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)u8.c_str(), u8.length(), (LPWSTR)&buf[0], len)) {
+			u16 = CUTF16String((const PA_Unichar *)&buf[0]);
+		}
+	}
+	else {
+		u16 = CUTF16String((const PA_Unichar *)L"");
+	}
+
+#else
+	CFStringRef str = CFStringCreateWithBytes(kCFAllocatorDefault, (const UInt8 *)u8.c_str(), u8.length(), kCFStringEncodingUTF8, true);
+	if (str) {
+		CFIndex len = CFStringGetLength(str);
+		std::vector<uint8_t> buf((len + 1) * sizeof(PA_Unichar));
+		CFStringGetCharacters(str, CFRangeMake(0, len), (UniChar *)&buf[0]);
+		u16 = CUTF16String((const PA_Unichar *)&buf[0]);
+		CFRelease(str);
+	}
 #endif
 }

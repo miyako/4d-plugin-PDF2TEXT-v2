@@ -21,12 +21,63 @@
 
 #include <assert.h>
 #include <stdlib.h>
+
 #include <glib.h>
+
+#if VERSIONMAC
 #include <poppler.h>
+#endif
+
+#if VERSIONWIN
+#include <config.h>
+#include <poppler-config.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstddef>
+#include <cstring>
+#include <ctime>
+#include <sstream>
+#include <cstdarg>
+#include <cstddef>
+#include <cctype>
+#include <cmath>
+#include <iostream>
+#include "goo/GooString.h"
+#include "goo/gbase64.h"
+#include "goo/gbasename.h"
+#include "goo/gmem.h"
+#include <UnicodeMap.h>
+#include <HtmlOutputDev.h>
+#include <SplashOutputDev.h>
+#include <HtmlFonts.h>
+#include <HtmlUtils.h>
+#include <InMemoryFile.h>
+#include "splash/SplashBitmap.h"
+#include "DateInfo.h"
+#include "PDFDocEncoding.h"
+#include "PDFDoc.h"
+#include "PDFDocFactory.h"
+#include "Outline.h"
+#include "GlobalParams.h"
+#include "GfxFont.h"
+#include "GfxState.h"
+#include "HtmlLinks.h"
+#include "Error.h"
+#include "Page.h"
+#include "Annot.h"
+#include "PNGWriter.h"
+
+#ifdef ENABLE_LIBPNG
+#    include <png.h>
+#endif
+
+static void u16_to_u8(CUTF16String& u16, std::string& u8);
+static void u8_to_u16(std::string& u8, CUTF16String& u16);
+#endif
+
 #include <poppler-document.h>
 #include <poppler-page.h>
-#include <cairo.h>
-#include <cairo-svg.h>
+
 #include <stdio.h>
 #include <string.h>
 
@@ -35,6 +86,7 @@
 
 #include "ufopen.h"
 
+/*
 #include "HtmlOutputDev.h"
 #include "SplashOutputDev.h"
 #include "splash/SplashBitmap.h"
@@ -44,6 +96,7 @@
 #include "PDFDocFactory.h"
 #include "Outline.h"
 #include "GlobalParams.h"
+*/
 
 typedef PA_long32 method_id_t;
 
@@ -52,9 +105,7 @@ typedef PA_long32 method_id_t;
 #define vsnprintf _vsnprintf
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
-extern "C" BOOL glib_DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved);
-extern "C" BOOL gio_DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved);
-extern "C" BOOL gobject_DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved);
+extern "C" BOOL poppler_DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved);
 #endif
 
 #pragma mark -
