@@ -19,12 +19,22 @@ xml:=PDF to XML(pdf;options)
 |options.end|Number|`-l` このページまで|
 |options.owner|Text|`-opw` オーナーパスワード|
 |options.user|Text|`-upw` ユーザーパスワード|
+|xml|BLOB||
 
 #### 常に有効なオプション
 
 * `-xml`
 * `-v`
 * `-q`
-* `-s`
+* `-c`
 * `-dataurls`
 * `-hidden`
+* `-noframes`
+
+#### 常に無効なオプション
+
+* `-h` `-?` `-help` `--help`
+* `-p`
+* `-s`
+* `-i`
+* `-stdout`
