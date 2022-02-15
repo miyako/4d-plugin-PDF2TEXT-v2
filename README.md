@@ -5,3 +5,20 @@
 
 # 4d-plugin-PDF2TEXT-v2
 PDF text extractor based on [poppler](https://poppler.freedesktop.org).
+
+## PDF to XML
+
+```4d
+xml:=PDF Get text(pdf;options)
+```
+
+|パラメーター|データ型|説明|
+|-|-|-|
+|pdf|BLOB||
+|options|Object||
+|options.start|Number|このページから (`1`)|
+|options.end|Number|このページまで (`1`)|
+|options.password|Text|パスワード|
+|options.method|Text|コールバックメソッド|
+|options.version|Number|コールバックメソッドの仕様|
+|text|Collection||
