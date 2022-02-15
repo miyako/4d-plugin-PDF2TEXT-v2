@@ -26,7 +26,7 @@ xml:=PDF to XML(pdf;options)
 |options.scale|Number|`-zoom` 座標係数 (`.1.5`)|
 |options.noRoundedCoordinates|Boolean|`-noroundcoord` 座標を丸めない (`true`)|
 |options.wordBreakThreshold|Number|`-wbt` (`10`)|
-|xml|BLOB||エンコーディングは固定 (`UTF-8`)
+|xml|BLOB||エンコーディングは固定値 (`UTF-8`)|
 
 #### 常に有効なオプション
 
