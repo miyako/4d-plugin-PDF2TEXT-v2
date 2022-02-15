@@ -48,3 +48,7 @@ xml:=PDF to XML(pdf;options)
 * `-nodrm`
 * `-fontfullname`
 * `-dataurls`
+
+### 論考
+
+Popplerはレンダリングエンジンであるので，テキストは論理的なブロックではなく，絶対値で返される。
