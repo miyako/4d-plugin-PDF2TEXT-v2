@@ -31,7 +31,6 @@ xml:=PDF to XML(pdf;options)
 * `-v`
 * `-q`
 * `-c`
-* `-dataurls`
 * `-hidden`
 * `-noframes`
 * `-noMerge`
@@ -45,3 +44,4 @@ xml:=PDF to XML(pdf;options)
 * `-stdout`
 * `-nodrm`
 * `-fontfullname`
+* `-dataurls`
