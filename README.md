@@ -24,7 +24,7 @@ xml:=PDF to XML(pdf;options)
 |options.userPassword|Text|`-upw` ユーザーパスワード|
 |options.scale|Number|`-zoom` 拡大率 (`.1.0`) `0.5`⇢`3.0`|
 |options.noRoundedCoordinates|Boolean|`-noroundcoord` 座標を丸めない (`true`)|
-|options.wordBreakThreshold|Number|`-wbt` (`1`)|
+|options.wordBreakThreshold|Number|`-wbt` わかち書きの閾値 (`1`)|
 |xml|BLOB|エンコーディングは固定値 (`UTF-8`)|
 
 #### 常に有効なオプション
