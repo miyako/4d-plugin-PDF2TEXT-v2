@@ -1,12 +1,7 @@
 # 4d-plugin-PDF2TEXT-v2
 PDF text extractor based on [poppler](https://poppler.freedesktop.org).
 
-### pdftoxml
-
-based on poppler/utils/pdftohtml.cc
-
-
-using `PDFDocFactory` API.
+based on poppler/utils/pdftohtml.cc `PDFDocFactory` API.
 
 ### build notes on macOS
 
@@ -29,7 +24,7 @@ xml:=PDF to XML(pdf;options)
 |options.userPassword|Text|`-upw` ユーザーパスワード|
 |options.imageFormat|Text|`-fmt` 画像形式 (`.png`) `.jpg`|
 |options.scale|Number|`-zoom` 座標係数 (`.1.5`)|
-|options.noRoundedCoordinates|Boolean|`-noroundcoord` 座標を丸めない (`false`)|
+|options.noRoundedCoordinates|Boolean|`-noroundcoord` 座標を丸めない (`true`)|
 |options.wordBreakThreshold|Number|`-wbt` (`10`)|
 |xml|BLOB||
 
