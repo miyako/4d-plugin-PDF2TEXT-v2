@@ -15,8 +15,8 @@ xml:=PDF to XML(pdf;options)
 |-|-|-|
 |pdf|BLOB||
 |options|Object||
-|options.first|Number|`-f` このページから (`1`)|
-|options.last|Number|`-l` このページまで (`0`)|
+|options.firstPage|Number|`-f` このページから (`1`)|
+|options.finalPage|Number|`-l` このページまで (`0`)|
 |options.ownerPassword|Text|`-opw` オーナーパスワード|
 |options.userPassword|Text|`-upw` ユーザーパスワード|
 |options.imageFormat|Text|`-fmt` 画像形式 (`.png`) `.jpg`|
@@ -34,6 +34,7 @@ xml:=PDF to XML(pdf;options)
 * `-dataurls`
 * `-hidden`
 * `-noframes`
+* `-noMerge`
 
 #### 常に無効なオプション
 
