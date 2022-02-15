@@ -23,13 +23,13 @@ text:=PDF Get text(pdf;options)
 |options.version|Number|コールバックメソッドの仕様|
 |text|Collection||
 
-### コールバックメソッドv1
+### コールバックメソッド v1
 
 ```4d
 #DECLARE(position:Integer;total:Integer;page:Integer;text:Text)->abort:Boolean
 ```
 
-### コールバックメソッドv2
+### コールバックメソッド v2
 
 ```4d
 #DECLARE(info:Object)->abort:Boolean
