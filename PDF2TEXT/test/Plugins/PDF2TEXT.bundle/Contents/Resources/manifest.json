@@ -1,0 +1,11 @@
+{
+    "name": "PDF2TEXT",
+    "id": 20000,
+    "commands": [
+        {
+            "theme": "PDF2TEXT",
+            "syntax": "PDF Get text(&O;&J):C",
+            "threadSafe": true
+        }
+    ]
+}
