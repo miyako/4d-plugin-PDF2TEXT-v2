@@ -33,7 +33,7 @@ void PluginMain(PA_long32 selector, PA_PluginParameters params) {
 			// --- PDF2TEXT
             
 			case 1 :
-				PDF_Get_text(params);
+                PDF_Get_XML(params);
 				break;
 
         }
@@ -47,164 +47,2890 @@ void PluginMain(PA_long32 selector, PA_PluginParameters params) {
 
 #pragma mark -
 
-void PDF_Get_text(PA_PluginParameters params) {
+static GooString *getInfoString(Dict *infoDict, const char *key);
+static GooString *getInfoDate(Dict *infoDict, const char *key);
 
-    int startPage = 1;
-    int finalPage = 1;
-    int version = 2;
-    CUTF8String Password;
-    CUTF16String Method;
-    PA_CollectionRef c = PA_CreateCollection();
-    PA_ObjectRef options = PA_GetObjectParameter(params, 2);
+static void temporary_folder(std::string& value) {
+    
+    PA_Variable    _params[1];
+    _params[0] = PA_CreateVariable(eVK_Longint);
+    PA_Variable vPath = PA_ExecuteCommandByID( /*Temporary folder */486, _params, 0);
+    PA_ClearVariable(&_params[0]);
+    
+    PA_Unistring ustr = PA_GetStringVariable(vPath);
+    
+#ifdef _WIN32
+    int len = WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)ustr.fString, ustr.fLength, NULL, 0, NULL, NULL);
+    
+    if(len){
+        std::vector<uint8_t> buf(len + 1);
+        if(WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)ustr.fString, ustr.fLength, (LPSTR)&buf[0], len, NULL, NULL)){
+            value = std::string((const char *)&buf[0]);
+        }
+    }else{
+        value = std::string((const char *)"");
+    }
+    
+#else
+    CFStringRef str = CFStringCreateWithCharacters(kCFAllocatorDefault, (const UniChar *)ustr.fString, ustr.fLength);
+    if(str){
+        size_t size = CFStringGetMaximumSizeForEncoding(CFStringGetLength(str), kCFStringEncodingUTF8) + sizeof(uint8_t);
+        std::vector<uint8_t> buf(size);
+        CFIndex len = 0;
+        CFStringGetBytes(str, CFRangeMake(0, CFStringGetLength(str)), kCFStringEncodingUTF8, 0, true, (UInt8 *)&buf[0], size, &len);
+        value = std::string((const char *)&buf[0], len);
+        CFRelease(str);
+    }
+    
+#endif
+    
+    PA_ClearVariable(&vPath);
+    
+}
+
+static void generateUuid(std::string &uuid) {
+    
+#if VERSIONWIN
+    RPC_WSTR str;
+    UUID uid;
+    if (UuidCreate(&uid) == RPC_S_OK) {
+        if (UuidToString(&uid, &str) == RPC_S_OK) {
+            size_t len = wcslen((const wchar_t *)str);
+            std::vector<wchar_t>buf(len+1);
+            memcpy(&buf[0], str, len * sizeof(wchar_t));
+            _wcsupr((wchar_t *)&buf[0]);
+            CUTF16String wstr = CUTF16String((const PA_Unichar *)&buf[0], len);
+            u16_to_u8(wstr, uuid);
+            RpcStringFree(&str);
+        }
+    }
+#else
+    NSString *u = [[[NSUUID UUID]UUIDString]stringByReplacingOccurrencesOfString:@"-" withString:@""];
+    uuid = [u UTF8String];
+#endif
+}
+
+
+class SplashOutputDevNoText : public SplashOutputDev
+{
+public:
+    SplashOutputDevNoText(SplashColorMode colorModeA, int bitmapRowPadA, bool reverseVideoA, SplashColorPtr paperColorA, bool bitmapTopDownA = true)
+        : SplashOutputDev(colorModeA, bitmapRowPadA, reverseVideoA, paperColorA, bitmapTopDownA) { }
+    ~SplashOutputDevNoText() override;
+
+    void drawChar(GfxState *state, double x, double y, double dx, double dy, double originX, double originY, CharCode code, int nBytes, const Unicode *u, int uLen) override { }
+    bool beginType3Char(GfxState *state, double x, double y, double dx, double dy, CharCode code, const Unicode *u, int uLen) override { return false; }
+    void endType3Char(GfxState *state) override { }
+    void beginTextObject(GfxState *state) override { }
+    void endTextObject(GfxState *state) override { }
+    bool interpretType3Chars() override { return false; }
+};
+
+SplashOutputDevNoText::~SplashOutputDevNoText() = default;
+
+static bool noRoundedCoordinates = true;
+static double wordBreakThreshold = 10;
+
+#if VERSIONMAC
+static void convert_path(std::string& path) {
+    
+    /* hfs to posix */
+    C_TEXT t;
+    t.setUTF8String((const uint8_t *)path.c_str(), (uint32_t)path.length());
+    CUTF8String u;
+    t.copyPath(&u);
+    path = std::string((const char *)u.c_str());
+}
+#endif
+
+static void PDF_Get_XML(PA_PluginParameters params) {
+
+    std::vector<uint8_t> buf(0);
+    
+    int firstPage = 1;
+    int lastPage = 0;
+    
+    //TODO: make local
+    wordBreakThreshold = 10;
+    noRoundedCoordinates = true;
+    
+    std::string ownerPassword;
+    std::string userPassword;
+    
+    double scale = 1.5;
+    SplashImageFileFormat format = splashFormatPng;
+    
+    //fixed:true
+//    bool xml = true;
+//    bool printVersion = true;
+//    bool errQuiet = true;
+//    bool complexMode = true;
+//    bool showHidden = true;
+//    bool noframes = true;
+//    bool noMerge = true;
+
+    //fixed:false
+//    bool dataUrls = false;
+//    bool printHelp = false;
+//    bool printHtml = false;
+//    bool singleHtml = false;
+//    bool ignore = false;
+//    bool stout = false;
+//    bool noDrm = false;
+//    bool fontFullName = false;
+//    bool printCommands = false;
+    
+    globalParams = std::make_unique<GlobalParams>();
+
+    globalParams->setErrQuiet(false);
+    globalParams->setTextEncoding("UTF-8");
+
+    std::unique_ptr<PDFDoc> doc;
+
     PA_Handle h = PA_GetBlobHandleParameter(params, 1);
+    
     if(h) {
-        
+
         char *data = PA_LockHandle(h);
         int length = (int)PA_GetHandleSize(h);
         
-        if(ob_is_defined(options, L"start")) {
-            startPage = ob_get_n(options, L"start");
-        }
+        PA_ObjectRef options = PA_GetObjectParameter(params, 2);
         
-        if(ob_is_defined(options, L"end")) {
-            finalPage = ob_get_n(options, L"end");
-        }
-
-        if(ob_is_defined(options, L"password")) {
-            ob_get_s(options, L"password", &Password);
-        }
-        
-        if(ob_is_defined(options, L"method")) {
-            ob_get_a(options, L"method", &Method);
-        }
-        
-        if(ob_is_defined(options, L"version")) {
-            version = ob_get_n(options, L"version");
-        }
-        
-        const char *password = Password.length() ? (const char *)Password.c_str() : NULL;
-        
-        //callback
-        method_id_t methodId = PA_GetMethodID((PA_Unichar *)Method.c_str());
-        bool abortedByCallbackMethod = false;
-        bool isCallbackActive = false;
-        int number_entry;
-        
-        PopplerDocument *pdffile;
-        PopplerPage *page;
-        
-        pdffile = poppler_document_new_from_data(data, length, password, NULL);
-        
-        if(pdffile){
+        if(options) {
             
-            int pageCount = poppler_document_get_n_pages(pdffile);
-            
-            startPage = (startPage > 0) ? startPage : 1;
-            startPage = (startPage < pageCount) ? startPage : pageCount;
-            
-            finalPage = (finalPage > startPage) ? finalPage : pageCount;
-            finalPage = (finalPage < pageCount) ? finalPage : pageCount;
-            
-            startPage--;
-            finalPage--;
-            
-            if(methodId){
-                number_entry = (finalPage - startPage) + 1;
-                isCallbackActive = true;
+            if(ob_is_defined(options, L"first")) {
+                firstPage = ob_get_n(options, L"firstPage");
+                if (firstPage < 1)
+                    firstPage = 1;
             }
             
-            int currentpageInd = 0;
-            
-            for(int pageInd = startPage; pageInd < pageCount; ++pageInd) {
-                
-                currentpageInd++;
-                
-                page = poppler_document_get_page(pdffile, pageInd);
-                
-                if(page){
-                    
-                    char *pageText = poppler_page_get_text(page);
-                    CUTF8String pageTextUtf8((const uint8_t *)pageText);
-                    C_TEXT pageTextUtf16;
-                    pageTextUtf16.setUTF8String(&pageTextUtf8);
-                    
-                    PA_Variable    param[4];
-                    
-                    //callback
-                    if(isCallbackActive){
-                        
-                        switch (version) {
-                            case 1:
-                            {
-                                param[0] = PA_CreateVariable(eVK_Longint);
-                                param[1] = PA_CreateVariable(eVK_Longint);
-                                param[2] = PA_CreateVariable(eVK_Longint);
-                                param[3] = PA_CreateVariable(eVK_Text);
-                                PA_Unistring u = PA_CreateUnistring((PA_Unichar*)pageTextUtf16.getUTF16StringPtr());
-                                PA_SetStringVariable(&param[3], &u);
-                                PA_SetLongintVariable(&param[0], currentpageInd);
-                                PA_SetLongintVariable(&param[1], number_entry);
-                                PA_SetLongintVariable(&param[2], pageInd + 1);
-                                PA_Variable result = PA_ExecuteMethodByID(methodId, param, 4);
-                                if(PA_GetVariableKind(result) == eVK_Boolean){
-                                    abortedByCallbackMethod = PA_GetBooleanVariable(result);
-                                }
-                                if(!abortedByCallbackMethod) {
-                                    PA_SetCollectionElement(c, PA_GetCollectionLength(c), param[3]);
-                                }
-                                PA_ClearVariable(&param[0]);
-                                PA_ClearVariable(&param[1]);
-                                PA_ClearVariable(&param[2]);
-                                PA_ClearVariable(&param[3]);
-                            }
-                            break;
-                            
-                            default:
-                            {
-                                PA_ObjectRef o = PA_CreateObject();
-                                ob_set_i(o, L"position", currentpageInd);
-                                ob_set_i(o, L"page", pageInd + 1);
-                                ob_set_i(o, L"total", number_entry);
-                                ob_set_s(o, "text", (const char *)pageTextUtf8.c_str());
-                                param[0] = PA_CreateVariable(eVK_Object);
-                                PA_SetObjectVariable(&param[0], o);
-                                PA_Variable result = PA_ExecuteMethodByID(methodId, param, 1);
-                                if(PA_GetVariableKind(result) == eVK_Boolean){
-                                    abortedByCallbackMethod = PA_GetBooleanVariable(result);
-                                }
-                                if(!abortedByCallbackMethod) {
-                                    param[3] = PA_CreateVariable(eVK_Text);
-                                    PA_Unistring u = PA_CreateUnistring((PA_Unichar*)pageTextUtf16.getUTF16StringPtr());
-                                    PA_SetStringVariable(&param[3], &u);
-                                    PA_SetCollectionElement(c, PA_GetCollectionLength(c), param[3]);
-                                }
-                                PA_ClearVariable(&param[0]);
-                                PA_ClearVariable(&param[3]);
-                            }
-                            break;
-                        }
-                        
-                    }else{
-                        PA_YieldAbsolute();
-                    }
-                    
-                }//page
-                
-                if(abortedByCallbackMethod){
-                    break;
-
-                }
-                
+            if(ob_is_defined(options, L"lastPage")) {
+                lastPage = ob_get_n(options, L"lastPage");
             }
             
-            g_object_unref(pdffile);
+            if(ob_is_defined(options, L"noRoundedCoordinates")) {
+                noRoundedCoordinates = ob_get_b(options, L"noRoundedCoordinates");
+            }
             
-        }else{
-
+            if(ob_is_defined(options, L"wordBreakThreshold")) {
+                wordBreakThreshold = ob_get_n(options, L"wordBreakThreshold");
+            }
+            
+            if(ob_is_defined(options, L"scale")) {
+                scale = ob_get_n(options, L"scale");
+                if (scale > 3.0)
+                    scale = 3.0;
+                if (scale < 0.5)
+                    scale = 0.5;
+            }
+            
+            CUTF8String stringValue;
+            if(ob_is_defined(options, L"ownerPassword")) {
+                ob_get_s(options, L"ownerPassword", &stringValue);
+                ownerPassword = (const char *)stringValue.c_str();
+            }
+            
+            if(ob_is_defined(options, L"userPassword")) {
+                ob_get_s(options, L"userPassword", &stringValue);
+                userPassword = (const char *)stringValue.c_str();
+            }
+            
+            if(ob_is_defined(options, L"imageFormat")) {
+                ob_get_s(options, L"imageFormat", &stringValue);
+                if(
+                   (stringValue == (const uint8_t *)".jpg")
+                   ||(stringValue == (const uint8_t *)".jpeg")) {
+                       format = splashFormatJpeg;
+                   }
+            }
+            
         }
+        
+        std::string temporaryFolder;
+        temporary_folder(temporaryFolder);
+        
+        std::string temporaryFileName;
+        generateUuid(temporaryFileName);
+        
+        std::string temporaryPdfName = temporaryFolder + temporaryFileName + ".pdf";
+        
+#if VERSIONMAC
+        convert_path(temporaryPdfName);
+#endif
+        
+        FILE *fp = ufopen(temporaryPdfName.c_str(), "wb");
+
+        if(fp) {
+            fwrite(data, length, sizeof(char), fp);
+            fclose(fp);
+            fp = NULL;
+        }
+        
+        GooString *ownerPW, *userPW;
+
+        if (ownerPassword.length() != 0) {
+            ownerPW = new GooString(ownerPassword.c_str());
+        } else {
+            ownerPW = nullptr;
+        }
+        if (userPassword.length() != 0) {
+            userPW = new GooString(userPassword.c_str());
+        } else {
+            userPW = nullptr;
+        }
+        
+        GooString *fileName = new GooString(temporaryPdfName);
+                
+        doc = PDFDocFactory().createPDFDoc(*fileName, ownerPW, userPW);
+
+        if (userPW) {
+            delete userPW;
+        }
+        if (ownerPW) {
+            delete ownerPW;
+        }
+        
+        if (doc->isOk()) {
+            
+            if (lastPage < 1 || lastPage > doc->getNumPages())
+                lastPage = doc->getNumPages();
+            
+            if (lastPage < firstPage)
+                firstPage = lastPage;
+                
+            HtmlOutputDev *htmlOut = nullptr;
+            bool rawOrder = true;
+            bool doOutline = doc->getOutline()->getItems() != nullptr;
+            
+            generateUuid(temporaryFileName);
+            std::string temporaryXmlName = temporaryFolder + temporaryFileName;
+            
+#if VERSIONMAC
+        convert_path(temporaryXmlName);
+#endif
+            
+            GooString *htmlFileName = new GooString(temporaryXmlName);
+            
+            GooString *docTitle = nullptr,
+            *author = nullptr,
+            *keywords = nullptr,
+            *subject = nullptr,
+            *date = nullptr;
+            
+            Object info = doc->getDocInfo();
+            if (info.isDict()) {
+                docTitle = getInfoString(info.getDict(), "Title");
+                author = getInfoString(info.getDict(), "Author");
+                keywords = getInfoString(info.getDict(), "Keywords");
+                subject = getInfoString(info.getDict(), "Subject");
+                date = getInfoDate(info.getDict(), "ModDate");
+                if (!date)
+                    date = getInfoDate(info.getDict(), "CreationDate");
+            }
+            if (!docTitle)
+                docTitle = new GooString(htmlFileName);
+            
+            htmlOut = new HtmlOutputDev(doc->getCatalog(),
+                                        htmlFileName->c_str(),
+                                        docTitle->c_str(),
+                                        author ? author->c_str() : nullptr,
+                                        keywords ? keywords->c_str() : nullptr,
+                                        subject ? subject->c_str() : nullptr,
+                                        date ? date->c_str() : nullptr,
+                                        rawOrder, firstPage, doOutline);
+            delete docTitle;
+            if (author) {
+                delete author;
+            }
+            if (keywords) {
+                delete keywords;
+            }
+            if (subject) {
+                delete subject;
+            }
+            if (date) {
+                delete date;
+            }
+            delete htmlFileName;
+            
+            if (htmlOut->isOk()) {
+                
+                doc->displayPages(htmlOut, firstPage, lastPage, 72 * scale, 72 * scale, 0, true, false, false);
+            }
+            
+            delete htmlOut;
+            
+            temporaryXmlName += ".xml";
+            fp = ufopen(temporaryXmlName.c_str(), "rb");
+            if(fp) {
+                fseek(fp, 0L, SEEK_END);
+                long len = ftell(fp);
+                buf.resize(len * sizeof(char));
+                fseek(fp, 0L, SEEK_SET);
+                fread(&buf[0], len, sizeof(char), fp);
+                fclose(fp);
+                fp = NULL;
+                
+            }
+        }
+
+        delete fileName;
         
         PA_UnlockHandle(h);
     }
-    PA_ReturnCollection(params, c);
+
+    PA_ReturnBlob(params, &buf[0], (PA_long32)buf.size());
 }
 
+static GooString *getInfoString(Dict *infoDict, const char *key)
+{
+    Object obj;
+    // Raw value as read from PDF (may be in pdfDocEncoding or UCS2)
+    const GooString *rawString;
+    // Value converted to unicode
+    Unicode *unicodeString;
+    int unicodeLength;
+    // Value HTML escaped and converted to desired encoding
+    GooString *encodedString = nullptr;
+    // Is rawString UCS2 (as opposed to pdfDocEncoding)
+    bool isUnicode;
+
+    obj = infoDict->lookup(key);
+    if (obj.isString()) {
+        rawString = obj.getString();
+
+        // Convert rawString to unicode
+        if (rawString->hasUnicodeMarker()) {
+            isUnicode = true;
+            unicodeLength = (obj.getString()->getLength() - 2) / 2;
+        } else {
+            isUnicode = false;
+            unicodeLength = obj.getString()->getLength();
+        }
+        unicodeString = new Unicode[unicodeLength];
+
+        for (int i = 0; i < unicodeLength; i++) {
+            if (isUnicode) {
+                unicodeString[i] = ((rawString->getChar((i + 1) * 2) & 0xff) << 8) | (rawString->getChar(((i + 1) * 2) + 1) & 0xff);
+            } else {
+                unicodeString[i] = pdfDocEncoding[rawString->getChar(i) & 0xff];
+            }
+        }
+
+        // HTML escape and encode unicode
+        encodedString = HtmlFont::HtmlFilter(unicodeString, unicodeLength);
+        delete[] unicodeString;
+    }
+
+    return encodedString;
+}
+
+static GooString *getInfoDate(Dict *infoDict, const char *key)
+{
+    Object obj;
+    int year, mon, day, hour, min, sec, tz_hour, tz_minute;
+    char tz;
+    struct tm tmStruct;
+    GooString *result = nullptr;
+    char buf[256];
+
+    obj = infoDict->lookup(key);
+    if (obj.isString()) {
+        const GooString *s = obj.getString();
+        // TODO do something with the timezone info
+        if (parseDateString(s, &year, &mon, &day, &hour, &min, &sec, &tz, &tz_hour, &tz_minute)) {
+            tmStruct.tm_year = year - 1900;
+            tmStruct.tm_mon = mon - 1;
+            tmStruct.tm_mday = day;
+            tmStruct.tm_hour = hour;
+            tmStruct.tm_min = min;
+            tmStruct.tm_sec = sec;
+            tmStruct.tm_wday = -1;
+            tmStruct.tm_yday = -1;
+            tmStruct.tm_isdst = -1;
+            mktime(&tmStruct); // compute the tm_wday and tm_yday fields
+            if (strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S+00:00", &tmStruct)) {
+                result = new GooString(buf);
+            } else {
+                result = new GooString(s);
+            }
+        } else {
+            result = new GooString(s);
+        }
+    }
+    return result;
+}
+
+#pragma mark HtmlOutputDev.cc
+
+//========================================================================
+//
+// HtmlOutputDev.cc
+//
+// Copyright 1997-2002 Glyph & Cog, LLC
+//
+// Changed 1999-2000 by G.Ovtcharov
+//
+// Changed 2002 by Mikhail Kruk
+//
+//========================================================================
+
+//========================================================================
+//
+// Modified under the Poppler project - http://poppler.freedesktop.org
+//
+// All changes made under the Poppler project to this file are licensed
+// under GPL version 2 or later
+//
+// Copyright (C) 2005-2013, 2016-2021 Albert Astals Cid <aacid@kde.org>
+// Copyright (C) 2008 Kjartan Maraas <kmaraas@gnome.org>
+// Copyright (C) 2008 Boris Toloknov <tlknv@yandex.ru>
+// Copyright (C) 2008 Haruyuki Kawabe <Haruyuki.Kawabe@unisys.co.jp>
+// Copyright (C) 2008 Tomas Are Haavet <tomasare@gmail.com>
+// Copyright (C) 2009 Warren Toomey <wkt@tuhs.org>
+// Copyright (C) 2009, 2011 Carlos Garcia Campos <carlosgc@gnome.org>
+// Copyright (C) 2009 Reece Dunn <msclrhd@gmail.com>
+// Copyright (C) 2010, 2012, 2013 Adrian Johnson <ajohnson@redneon.com>
+// Copyright (C) 2010 Hib Eris <hib@hiberis.nl>
+// Copyright (C) 2010 OSSD CDAC Mumbai by Leena Chourey (leenac@cdacmumbai.in) and Onkar Potdar (onkar@cdacmumbai.in)
+// Copyright (C) 2011 Joshua Richardson <jric@chegg.com>
+// Copyright (C) 2011 Stephen Reichling <sreichling@chegg.com>
+// Copyright (C) 2011, 2012 Igor Slepchin <igor.slepchin@gmail.com>
+// Copyright (C) 2012 Ihar Filipau <thephilips@gmail.com>
+// Copyright (C) 2012 Gerald Schmidt <solahcin@gmail.com>
+// Copyright (C) 2012 Pino Toscano <pino@kde.org>
+// Copyright (C) 2013 Thomas Freitag <Thomas.Freitag@alfa.de>
+// Copyright (C) 2013 Julien Nabet <serval2412@yahoo.fr>
+// Copyright (C) 2013 Johannes Brandstätter <jbrandstaetter@gmail.com>
+// Copyright (C) 2014 Fabio D'Urso <fabiodurso@hotmail.it>
+// Copyright (C) 2016 Vincent Le Garrec <legarrec.vincent@gmail.com>
+// Copyright (C) 2017 Caolán McNamara <caolanm@redhat.com>
+// Copyright (C) 2018 Klarälvdalens Datakonsult AB, a KDAB Group company, <info@kdab.com>. Work sponsored by the LiMux project of the city of Munich
+// Copyright (C) 2018 Thibaut Brard <thibaut.brard@gmail.com>
+// Copyright (C) 2018-2020 Adam Reichold <adam.reichold@t-online.de>
+// Copyright (C) 2019, 2020 Oliver Sander <oliver.sander@tu-dresden.de>
+// Copyright (C) 2020 Eddie Kohler <ekohler@gmail.com>
+// Copyright (C) 2021 Christopher Hasse <hasse.christopher@gmail.com>
+//
+// To see a description of the changes please see the Changelog file that
+// came with your tarball or type make ChangeLog if you are building from git
+//
+//========================================================================
+
+#include "config.h"
+#include <cstdio>
+#include <cstdlib>
+#include <cstdarg>
+#include <cstddef>
+#include <cctype>
+#include <cmath>
+#include <iostream>
+#include "goo/GooString.h"
+#include "goo/gbasename.h"
+#include "goo/gbase64.h"
+#include "goo/gbasename.h"
+#include "UnicodeMap.h"
+#include "goo/gmem.h"
+#include "Error.h"
+#include "GfxState.h"
+#include "Page.h"
+#include "Annot.h"
+#include "PNGWriter.h"
+#include "GlobalParams.h"
+#include "HtmlOutputDev.h"
+#include "HtmlFonts.h"
+#include "HtmlUtils.h"
+#include "InMemoryFile.h"
+#include "Outline.h"
+#include "PDFDoc.h"
+
+#ifdef ENABLE_LIBPNG
+#    include <png.h>
+#endif
+
+#define DEBUG __FILE__ << ": " << __LINE__ << ": DEBUG: "
+
+class HtmlImage
+{
+public:
+    HtmlImage(GooString *_fName, GfxState *state) : fName(_fName)
+    {
+        state->transform(0, 0, &xMin, &yMax);
+        state->transform(1, 1, &xMax, &yMin);
+    }
+    ~HtmlImage() { delete fName; }
+    HtmlImage(const HtmlImage &) = delete;
+    HtmlImage &operator=(const HtmlImage &) = delete;
+
+    double xMin, xMax; // image x coordinates
+    double yMin, yMax; // image y coordinates
+    GooString *fName; // image file name
+};
+
+// returns true if x is closer to y than x is to z
+static inline bool IS_CLOSER(float x, float y, float z)
+{
+    return std::fabs((x) - (y)) < std::fabs((x) - (z));
+}
+
+//extern bool complexMode;
+//extern bool singleHtml;
+//extern bool dataUrls;
+//extern bool ignore;
+//extern bool printCommands;
+//extern bool printHtml;
+//extern bool noframes;
+//extern bool stout;
+//extern bool xml;
+//extern bool noRoundedCoordinates;
+//extern bool showHidden;
+//extern bool noMerge;
+
+//extern double wordBreakThreshold;
+
+static bool debug = false;
+static GooString *gstr_buff0 = nullptr; // a workspace in which I format strings
+
+#if 0
+static GooString* Dirname(GooString* str){
+  
+  char *p=str->c_str();
+  int len=str->getLength();
+  for (int i=len-1;i>=0;i--)
+    if (*(p+i)==SLASH)
+      return new GooString(p,i+1);
+  return new GooString();
+}
+#endif
+
+static const char *print_matrix(const double *mat)
+{
+    delete gstr_buff0;
+
+    gstr_buff0 = GooString::format("[{0:g} {1:g} {2:g} {3:g} {4:g} {5:g}]", *mat, mat[1], mat[2], mat[3], mat[4], mat[5]);
+    return gstr_buff0->c_str();
+}
+
+static const char *print_uni_str(const Unicode *u, const unsigned uLen)
+{
+    GooString *gstr_buff1 = nullptr;
+
+    delete gstr_buff0;
+
+    if (!uLen)
+        return "";
+    gstr_buff0 = GooString::format("{0:c}", (*u < 0x7F ? *u & 0xFF : '?'));
+    for (unsigned i = 1; i < uLen; i++) {
+        if (u[i] < 0x7F) {
+            gstr_buff1 = gstr_buff0->append(u[i] < 0x7F ? static_cast<char>(u[i]) & 0xFF : '?');
+            delete gstr_buff0;
+            gstr_buff0 = gstr_buff1;
+        }
+    }
+
+    return gstr_buff0->c_str();
+}
+
+//------------------------------------------------------------------------
+// HtmlString
+//------------------------------------------------------------------------
+
+HtmlString::HtmlString(GfxState *state, double fontSize, HtmlFontAccu *_fonts) : fonts(_fonts)
+{
+    GfxFont *font;
+    double x, y;
+
+    state->transform(state->getCurX(), state->getCurY(), &x, &y);
+    if ((font = state->getFont())) {
+        double ascent = font->getAscent();
+        double descent = font->getDescent();
+        if (ascent > 1.05) {
+            // printf( "ascent=%.15g is too high, descent=%.15g\n", ascent, descent );
+            ascent = 1.05;
+        }
+        if (descent < -0.4) {
+            // printf( "descent %.15g is too low, ascent=%.15g\n", descent, ascent );
+            descent = -0.4;
+        }
+        yMin = y - ascent * fontSize;
+        yMax = y - descent * fontSize;
+        GfxRGB rgb;
+        state->getFillRGB(&rgb);
+        HtmlFont hfont = HtmlFont(font, static_cast<int>(fontSize), rgb, state->getFillOpacity());
+        if (isMatRotOrSkew(state->getTextMat())) {
+            double normalizedMatrix[4];
+            memcpy(normalizedMatrix, state->getTextMat(), sizeof(normalizedMatrix));
+            // browser rotates the opposite way
+            // so flip the sign of the angle -> sin() components change sign
+            if (debug)
+                std::cerr << DEBUG << "before transform: " << print_matrix(normalizedMatrix) << std::endl;
+            normalizedMatrix[1] *= -1;
+            normalizedMatrix[2] *= -1;
+            if (debug)
+                std::cerr << DEBUG << "after reflecting angle: " << print_matrix(normalizedMatrix) << std::endl;
+            normalizeRotMat(normalizedMatrix);
+            if (debug)
+                std::cerr << DEBUG << "after norm: " << print_matrix(normalizedMatrix) << std::endl;
+            hfont.setRotMat(normalizedMatrix);
+        }
+        fontpos = fonts->AddFont(hfont);
+    } else {
+        // this means that the PDF file draws text without a current font,
+        // which should never happen
+        yMin = y - 0.95 * fontSize;
+        yMax = y + 0.35 * fontSize;
+        fontpos = 0;
+    }
+    if (yMin == yMax) {
+        // this is a sanity check for a case that shouldn't happen -- but
+        // if it does happen, we want to avoid dividing by zero later
+        yMin = y;
+        yMax = y + 1;
+    }
+    col = 0;
+    text = nullptr;
+    xRight = nullptr;
+    link = nullptr;
+    len = size = 0;
+    yxNext = nullptr;
+    xyNext = nullptr;
+    htext = new GooString();
+    dir = textDirUnknown;
+}
+
+HtmlString::~HtmlString()
+{
+    gfree(text);
+    delete htext;
+    gfree(xRight);
+}
+
+void HtmlString::addChar(GfxState *state, double x, double y, double dx, double dy, Unicode u)
+{
+    if (dir == textDirUnknown) {
+        // dir = UnicodeMap::getDirection(u);
+        dir = textDirLeftRight;
+    }
+
+    if (len == size) {
+        size += 16;
+        text = (Unicode *)grealloc(text, size * sizeof(Unicode));
+        xRight = (double *)grealloc(xRight, size * sizeof(double));
+    }
+    text[len] = u;
+    if (len == 0) {
+        xMin = x;
+    }
+    xMax = xRight[len] = x + dx;
+    // printf("added char: %f %f xright = %f\n", x, dx, x+dx);
+    ++len;
+}
+
+void HtmlString::endString()
+{
+    if (dir == textDirRightLeft && len > 1) {
+        // printf("will reverse!\n");
+        for (int i = 0; i < len / 2; i++) {
+            Unicode ch = text[i];
+            text[i] = text[len - i - 1];
+            text[len - i - 1] = ch;
+        }
+    }
+}
+
+//------------------------------------------------------------------------
+// HtmlPage
+//------------------------------------------------------------------------
+
+HtmlPage::HtmlPage(bool rawOrderA)
+{
+    rawOrder = rawOrderA;
+    curStr = nullptr;
+    yxStrings = nullptr;
+    xyStrings = nullptr;
+    yxCur1 = yxCur2 = nullptr;
+    fonts = new HtmlFontAccu();
+    links = new HtmlLinks();
+    pageWidth = 0;
+    pageHeight = 0;
+    fontsPageMarker = 0;
+    DocName = nullptr;
+    firstPage = -1;
+}
+
+HtmlPage::~HtmlPage()
+{
+    clear();
+    delete DocName;
+    delete fonts;
+    delete links;
+    for (auto entry : imgList) {
+        delete entry;
+    }
+}
+
+void HtmlPage::updateFont(GfxState *state)
+{
+    GfxFont *font;
+    const char *name;
+    int code;
+    double w;
+
+    // adjust the font size
+    fontSize = state->getTransformedFontSize();
+    if ((font = state->getFont()) && font->getType() == fontType3) {
+        // This is a hack which makes it possible to deal with some Type 3
+        // fonts.  The problem is that it's impossible to know what the
+        // base coordinate system used in the font is without actually
+        // rendering the font.  This code tries to guess by looking at the
+        // width of the character 'm' (which breaks if the font is a
+        // subset that doesn't contain 'm').
+        for (code = 0; code < 256; ++code) {
+            if ((name = ((Gfx8BitFont *)font)->getCharName(code)) && name[0] == 'm' && name[1] == '\0') {
+                break;
+            }
+        }
+        if (code < 256) {
+            w = ((Gfx8BitFont *)font)->getWidth(code);
+            if (w != 0) {
+                // 600 is a generic average 'm' width -- yes, this is a hack
+                fontSize *= w / 0.6;
+            }
+        }
+        const double *fm = font->getFontMatrix();
+        if (fm[0] != 0) {
+            fontSize *= fabs(fm[3] / fm[0]);
+        }
+    }
+}
+
+void HtmlPage::beginString(GfxState *state, const GooString *s)
+{
+    curStr = new HtmlString(state, fontSize, fonts);
+}
+
+void HtmlPage::conv()
+{
+    for (HtmlString *tmp = yxStrings; tmp; tmp = tmp->yxNext) {
+        delete tmp->htext;
+        tmp->htext = HtmlFont::HtmlFilter(tmp->text, tmp->len);
+
+        int linkIndex = 0;
+        if (links->inLink(tmp->xMin, tmp->yMin, tmp->xMax, tmp->yMax, linkIndex)) {
+            tmp->link = links->getLink(linkIndex);
+        }
+    }
+}
+
+void HtmlPage::addChar(GfxState *state, double x, double y, double dx, double dy, double ox, double oy, const Unicode *u, int uLen)
+{
+    double x1, y1, w1, h1, dx2, dy2;
+    int n, i;
+    state->transform(x, y, &x1, &y1);
+    n = curStr->len;
+
+    // check that new character is in the same direction as current string
+    // and is not too far away from it before adding
+    // if ((UnicodeMap::getDirection(u[0]) != curStr->dir) ||
+    // XXX
+    if (debug) {
+        const double *text_mat = state->getTextMat();
+        // rotation is (cos q, sin q, -sin q, cos q, 0, 0)
+        // sin q is zero iff there is no rotation, or 180 deg. rotation;
+        // for 180 rotation, cos q will be negative
+        if (text_mat[0] < 0 || !is_within(text_mat[1], .1, 0)) {
+            std::cerr << DEBUG << "rotation matrix for \"" << print_uni_str(u, uLen) << '"' << std::endl;
+            std::cerr << "text " << print_matrix(state->getTextMat());
+        }
+    }
+    if (n > 0 && // don't start a new string, unless there is already a string
+                 // TODO: the following line assumes that text is flowing left to
+                 // right, which will not necessarily be the case, e.g. if rotated;
+                 // It assesses whether or not two characters are close enough to
+                 // be part of the same string
+        fabs(x1 - curStr->xRight[n - 1]) > wordBreakThreshold * (curStr->yMax - curStr->yMin) &&
+        // rotation is (cos q, sin q, -sin q, cos q, 0, 0)
+        // sin q is zero iff there is no rotation, or 180 deg. rotation;
+        // for 180 rotation, cos q will be negative
+        !rot_matrices_equal(curStr->getFont().getRotMat(), state->getTextMat())) {
+        endString();
+        beginString(state, nullptr);
+    }
+    state->textTransformDelta(state->getCharSpace() * state->getHorizScaling(), 0, &dx2, &dy2);
+    dx -= dx2;
+    dy -= dy2;
+    state->transformDelta(dx, dy, &w1, &h1);
+    if (uLen != 0) {
+        w1 /= uLen;
+        h1 /= uLen;
+    }
+    for (i = 0; i < uLen; ++i) {
+        curStr->addChar(state, x1 + i * w1, y1 + i * h1, w1, h1, u[i]);
+    }
+}
+
+void HtmlPage::endString()
+{
+    HtmlString *p1, *p2;
+    double h, y1, y2;
+
+    // throw away zero-length strings -- they don't have valid xMin/xMax
+    // values, and they're useless anyway
+    if (curStr->len == 0) {
+        delete curStr;
+        curStr = nullptr;
+        return;
+    }
+
+    curStr->endString();
+
+#if 0 //~tmp
+  if (curStr->yMax - curStr->yMin > 20) {
+    delete curStr;
+    curStr = NULL;
+    return;
+  }
+#endif
+
+    // insert string in y-major list
+    h = curStr->yMax - curStr->yMin;
+    y1 = curStr->yMin + 0.5 * h;
+    y2 = curStr->yMin + 0.8 * h;
+    if (rawOrder) {
+        p1 = yxCur1;
+        p2 = nullptr;
+    } else if ((!yxCur1 || (y1 >= yxCur1->yMin && (y2 >= yxCur1->yMax || curStr->xMax >= yxCur1->xMin))) && (!yxCur2 || (y1 < yxCur2->yMin || (y2 < yxCur2->yMax && curStr->xMax < yxCur2->xMin)))) {
+        p1 = yxCur1;
+        p2 = yxCur2;
+    } else {
+        for (p1 = nullptr, p2 = yxStrings; p2; p1 = p2, p2 = p2->yxNext) {
+            if (y1 < p2->yMin || (y2 < p2->yMax && curStr->xMax < p2->xMin))
+                break;
+        }
+        yxCur2 = p2;
+    }
+    yxCur1 = curStr;
+    if (p1)
+        p1->yxNext = curStr;
+    else
+        yxStrings = curStr;
+    curStr->yxNext = p2;
+    curStr = nullptr;
+}
+
+static const char *strrstr(const char *s, const char *ss)
+{
+    const char *p = strstr(s, ss);
+    for (const char *pp = p; pp != nullptr; pp = strstr(p + 1, ss)) {
+        p = pp;
+    }
+    return p;
+}
+
+static void CloseTags(GooString *htext, bool &finish_a, bool &finish_italic, bool &finish_bold)
+{
+    const char *last_italic = finish_italic && (finish_bold || finish_a) ? strrstr(htext->c_str(), "<i>") : nullptr;
+    const char *last_bold = finish_bold && (finish_italic || finish_a) ? strrstr(htext->c_str(), "<b>") : nullptr;
+    const char *last_a = finish_a && (finish_italic || finish_bold) ? strrstr(htext->c_str(), "<a ") : nullptr;
+    if (finish_a && (finish_italic || finish_bold) && last_a > (last_italic > last_bold ? last_italic : last_bold)) {
+        htext->append("</a>", 4);
+        finish_a = false;
+    }
+    if (finish_italic && finish_bold && last_italic > last_bold) {
+        htext->append("</i>", 4);
+        finish_italic = false;
+    }
+    if (finish_bold)
+        htext->append("</b>", 4);
+    if (finish_italic)
+        htext->append("</i>", 4);
+    if (finish_a)
+        htext->append("</a>");
+}
+
+// Strings are lines of text;
+// This function aims to combine strings into lines and paragraphs if !noMerge
+// It may also strip out duplicate strings (if they are on top of each other); sometimes they are to create a font effect
+void HtmlPage::coalesce()
+{
+    bool complexMode = true;
+    bool noMerge = true;
+    bool xml = true;
+    
+    HtmlString *str1, *str2;
+    double space, horSpace, vertSpace, vertOverlap;
+    bool addSpace, addLineBreak;
+    int n, i;
+    double curX, curY;
+
+#if 0 //~ for debugging
+  for (str1 = yxStrings; str1; str1 = str1->yxNext) {
+    printf("x=%f..%f  y=%f..%f  size=%2d '",
+       str1->xMin, str1->xMax, str1->yMin, str1->yMax,
+       (int)(str1->yMax - str1->yMin));
+    for (i = 0; i < str1->len; ++i) {
+      fputc(str1->text[i] & 0xff, stdout);
+    }
+    printf("'\n");
+  }
+  printf("\n------------------------------------------------------------\n\n");
+#endif
+    str1 = yxStrings;
+
+    if (!str1)
+        return;
+
+    //----- discard duplicated text (fake boldface, drop shadows)
+    if (!complexMode) { /* if not in complex mode get rid of duplicate strings */
+        HtmlString *str3;
+        bool found;
+        while (str1) {
+            double size = str1->yMax - str1->yMin;
+            double xLimit = str1->xMin + size;
+            found = false;
+            for (str2 = str1, str3 = str1->yxNext; str3 && str3->xMin < xLimit; str2 = str3, str3 = str2->yxNext) {
+                if (str3->len == str1->len && !memcmp(str3->text, str1->text, str1->len * sizeof(Unicode)) && fabs(str3->yMin - str1->yMin) < size * 0.2 && fabs(str3->yMax - str1->yMax) < size * 0.2
+                    && fabs(str3->xMax - str1->xMax) < size * 0.1) {
+                    found = true;
+                    // printf("found duplicate!\n");
+                    break;
+                }
+            }
+            if (found) {
+                str2->xyNext = str3->xyNext;
+                str2->yxNext = str3->yxNext;
+                delete str3;
+            } else {
+                str1 = str1->yxNext;
+            }
+        }
+    } /*- !complexMode */
+
+    str1 = yxStrings;
+
+    const HtmlFont *hfont1 = getFont(str1);
+    if (hfont1->isBold())
+        str1->htext->insert(0, "<b>", 3);
+    if (hfont1->isItalic())
+        str1->htext->insert(0, "<i>", 3);
+    if (str1->getLink() != nullptr) {
+        GooString *ls = str1->getLink()->getLinkStart();
+        str1->htext->insert(0, ls);
+        delete ls;
+    }
+    curX = str1->xMin;
+    curY = str1->yMin;
+
+    while (str1 && (str2 = str1->yxNext)) {
+        const HtmlFont *hfont2 = getFont(str2);
+        space = str1->yMax - str1->yMin; // the height of the font's bounding box
+        horSpace = str2->xMin - str1->xMax;
+        // if strings line up on left-hand side AND they are on subsequent lines, we need a line break
+        addLineBreak = !noMerge && (fabs(str1->xMin - str2->xMin) < 0.4) && IS_CLOSER(str2->yMax, str1->yMax + space, str1->yMax);
+        vertSpace = str2->yMin - str1->yMax;
+
+        // printf("coalesce %d %d %f? ", str1->dir, str2->dir, d);
+
+        if (str2->yMin >= str1->yMin && str2->yMin <= str1->yMax) {
+            vertOverlap = str1->yMax - str2->yMin;
+        } else if (str2->yMax >= str1->yMin && str2->yMax <= str1->yMax) {
+            vertOverlap = str2->yMax - str1->yMin;
+        } else {
+            vertOverlap = 0;
+        }
+
+        // Combine strings if:
+        //  They appear to be the same font (complex mode only) && going in the same direction AND at least one of the following:
+        //  1.  They appear to be part of the same line of text
+        //  2.  They appear to be subsequent lines of a paragraph
+        //  We assume (1) or (2) above, respectively, based on:
+        //  (1)  strings overlap vertically AND
+        //       horizontal space between end of str1 and start of str2 is consistent with a single space or less;
+        //       when rawOrder, the strings have to overlap vertically by at least 50%
+        //  (2)  Strings flow down the page, but the space between them is not too great, and they are lined up on the left
+        if (((((rawOrder && vertOverlap > 0.5 * space) || (!rawOrder && str2->yMin < str1->yMax)) && (horSpace > -0.5 * space && horSpace < space)) || (vertSpace >= 0 && vertSpace < 0.5 * space && addLineBreak))
+            && (!complexMode || (hfont1->isEqualIgnoreBold(*hfont2))) && // in complex mode fonts must be the same, in other modes fonts do not metter
+            str1->dir == str2->dir // text direction the same
+        ) {
+            //      printf("yes\n");
+            n = str1->len + str2->len;
+            if ((addSpace = horSpace > wordBreakThreshold * space)) {
+                ++n;
+            }
+            if (addLineBreak) {
+                ++n;
+            }
+
+            str1->size = (n + 15) & ~15;
+            str1->text = (Unicode *)grealloc(str1->text, str1->size * sizeof(Unicode));
+            str1->xRight = (double *)grealloc(str1->xRight, str1->size * sizeof(double));
+            if (addSpace) {
+                str1->text[str1->len] = 0x20;
+                str1->htext->append(xml ? " " : "&#160;");
+                str1->xRight[str1->len] = str2->xMin;
+                ++str1->len;
+            }
+            if (addLineBreak) {
+                str1->text[str1->len] = '\n';
+                str1->htext->append("<br/>");
+                str1->xRight[str1->len] = str2->xMin;
+                ++str1->len;
+                str1->yMin = str2->yMin;
+                str1->yMax = str2->yMax;
+                str1->xMax = str2->xMax;
+                int fontLineSize = hfont1->getLineSize();
+                int curLineSize = (int)(vertSpace + space);
+                if (curLineSize != fontLineSize) {
+                    HtmlFont *newfnt = new HtmlFont(*hfont1);
+                    newfnt->setLineSize(curLineSize);
+                    str1->fontpos = fonts->AddFont(*newfnt);
+                    delete newfnt;
+                    hfont1 = getFont(str1);
+                    // we have to reget hfont2 because it's location could have
+                    // changed on resize
+                    hfont2 = getFont(str2);
+                }
+            }
+            for (i = 0; i < str2->len; ++i) {
+                str1->text[str1->len] = str2->text[i];
+                str1->xRight[str1->len] = str2->xRight[i];
+                ++str1->len;
+            }
+
+            /* fix <i>, <b> if str1 and str2 differ and handle switch of links */
+            const HtmlLink *hlink1 = str1->getLink();
+            const HtmlLink *hlink2 = str2->getLink();
+            bool switch_links = !hlink1 || !hlink2 || !hlink1->isEqualDest(*hlink2);
+            bool finish_a = switch_links && hlink1 != nullptr;
+            bool finish_italic = hfont1->isItalic() && (!hfont2->isItalic() || finish_a);
+            bool finish_bold = hfont1->isBold() && (!hfont2->isBold() || finish_a || finish_italic);
+            CloseTags(str1->htext, finish_a, finish_italic, finish_bold);
+            if (switch_links && hlink2 != nullptr) {
+                GooString *ls = hlink2->getLinkStart();
+                str1->htext->append(ls);
+                delete ls;
+            }
+            if ((!hfont1->isItalic() || finish_italic) && hfont2->isItalic())
+                str1->htext->append("<i>", 3);
+            if ((!hfont1->isBold() || finish_bold) && hfont2->isBold())
+                str1->htext->append("<b>", 3);
+
+            str1->htext->append(str2->htext);
+            // str1 now contains href for link of str2 (if it is defined)
+            str1->link = str2->link;
+            hfont1 = hfont2;
+            if (str2->xMax > str1->xMax) {
+                str1->xMax = str2->xMax;
+            }
+            if (str2->yMax > str1->yMax) {
+                str1->yMax = str2->yMax;
+            }
+            str1->yxNext = str2->yxNext;
+            delete str2;
+        } else { // keep strings separate
+            //      printf("no\n");
+            bool finish_a = str1->getLink() != nullptr;
+            bool finish_bold = hfont1->isBold();
+            bool finish_italic = hfont1->isItalic();
+            CloseTags(str1->htext, finish_a, finish_italic, finish_bold);
+
+            str1->xMin = curX;
+            str1->yMin = curY;
+            str1 = str2;
+            curX = str1->xMin;
+            curY = str1->yMin;
+            hfont1 = hfont2;
+            if (hfont1->isBold())
+                str1->htext->insert(0, "<b>", 3);
+            if (hfont1->isItalic())
+                str1->htext->insert(0, "<i>", 3);
+            if (str1->getLink() != nullptr) {
+                GooString *ls = str1->getLink()->getLinkStart();
+                str1->htext->insert(0, ls);
+                delete ls;
+            }
+        }
+    }
+    str1->xMin = curX;
+    str1->yMin = curY;
+
+    bool finish_bold = hfont1->isBold();
+    bool finish_italic = hfont1->isItalic();
+    bool finish_a = str1->getLink() != nullptr;
+    CloseTags(str1->htext, finish_a, finish_italic, finish_bold);
+
+#if 0 //~ for debugging
+  for (str1 = yxStrings; str1; str1 = str1->yxNext) {
+    printf("x=%3d..%3d  y=%3d..%3d  size=%2d ",
+       (int)str1->xMin, (int)str1->xMax, (int)str1->yMin, (int)str1->yMax,
+       (int)(str1->yMax - str1->yMin));
+    printf("'%s'\n", str1->htext->c_str());
+  }
+  printf("\n------------------------------------------------------------\n\n");
+#endif
+}
+
+void HtmlPage::dumpAsXML(FILE *f, int page)
+{
+    fprintf(f, "<page number=\"%d\" position=\"absolute\"", page);
+    fprintf(f, " top=\"0\" left=\"0\" height=\"%d\" width=\"%d\">\n", pageHeight, pageWidth);
+
+    for (int i = fontsPageMarker; i < fonts->size(); i++) {
+        GooString *fontCSStyle = fonts->CSStyle(i);
+        fprintf(f, "\t%s\n", fontCSStyle->c_str());
+        delete fontCSStyle;
+    }
+
+    for (auto ptr : imgList) {
+        auto img = static_cast<HtmlImage *>(ptr);
+        if (!noRoundedCoordinates) {
+            fprintf(f, "<image top=\"%d\" left=\"%d\" ", xoutRound(img->yMin), xoutRound(img->xMin));
+            fprintf(f, "width=\"%d\" height=\"%d\" ", xoutRound(img->xMax - img->xMin), xoutRound(img->yMax - img->yMin));
+        } else {
+            fprintf(f, "<image top=\"%f\" left=\"%f\" ", img->yMin, img->xMin);
+            fprintf(f, "width=\"%f\" height=\"%f\" ", img->xMax - img->xMin, img->yMax - img->yMin);
+        }
+        fprintf(f, "src=\"%s\"/>\n", img->fName->c_str());
+        delete img;
+    }
+    imgList.clear();
+
+    for (HtmlString *tmp = yxStrings; tmp; tmp = tmp->yxNext) {
+        if (tmp->htext) {
+            if (!noRoundedCoordinates) {
+                fprintf(f, "<text top=\"%d\" left=\"%d\" ", xoutRound(tmp->yMin), xoutRound(tmp->xMin));
+                fprintf(f, "width=\"%d\" height=\"%d\" ", xoutRound(tmp->xMax - tmp->xMin), xoutRound(tmp->yMax - tmp->yMin));
+            } else {
+                fprintf(f, "<text top=\"%f\" left=\"%f\" ", tmp->yMin, tmp->xMin);
+                fprintf(f, "width=\"%f\" height=\"%f\" ", tmp->xMax - tmp->xMin, tmp->yMax - tmp->yMin);
+            }
+            fprintf(f, "font=\"%d\">", tmp->fontpos);
+            fputs(tmp->htext->c_str(), f);
+            fputs("</text>\n", f);
+        }
+    }
+    fputs("</page>\n", f);
+}
+
+static void printCSS(FILE *f)
+{
+    // Image flip/flop CSS
+    // Source:
+    // http://stackoverflow.com/questions/1309055/cross-browser-way-to-flip-html-image-via-javascript-css
+    // tested in Chrome, Fx (Linux) and IE9 (W7)
+    static const char css[] = "<style type=\"text/css\">"
+                              "\n"
+                              "<!--"
+                              "\n"
+                              ".xflip {"
+                              "\n"
+                              "    -moz-transform: scaleX(-1);"
+                              "\n"
+                              "    -webkit-transform: scaleX(-1);"
+                              "\n"
+                              "    -o-transform: scaleX(-1);"
+                              "\n"
+                              "    transform: scaleX(-1);"
+                              "\n"
+                              "    filter: fliph;"
+                              "\n"
+                              "}"
+                              "\n"
+                              ".yflip {"
+                              "\n"
+                              "    -moz-transform: scaleY(-1);"
+                              "\n"
+                              "    -webkit-transform: scaleY(-1);"
+                              "\n"
+                              "    -o-transform: scaleY(-1);"
+                              "\n"
+                              "    transform: scaleY(-1);"
+                              "\n"
+                              "    filter: flipv;"
+                              "\n"
+                              "}"
+                              "\n"
+                              ".xyflip {"
+                              "\n"
+                              "    -moz-transform: scaleX(-1) scaleY(-1);"
+                              "\n"
+                              "    -webkit-transform: scaleX(-1) scaleY(-1);"
+                              "\n"
+                              "    -o-transform: scaleX(-1) scaleY(-1);"
+                              "\n"
+                              "    transform: scaleX(-1) scaleY(-1);"
+                              "\n"
+                              "    filter: fliph + flipv;"
+                              "\n"
+                              "}"
+                              "\n"
+                              "-->"
+                              "\n"
+                              "</style>"
+                              "\n";
+
+    fwrite(css, sizeof(css) - 1, 1, f);
+}
+
+int HtmlPage::dumpComplexHeaders(FILE *const file, FILE *&pageFile, int page)
+{
+    
+    bool singleHtml = false;
+    bool noframes = true;
+    
+    if (!noframes) {
+        const std::string pgNum = std::to_string(page);
+        std::string pageFileName(DocName->toStr());
+        if (!singleHtml) {
+            pageFileName += '-' + pgNum + ".html";
+            pageFile = fopen(pageFileName.c_str(), "w");
+        } else {
+            pageFileName += "-html.html";
+            pageFile = fopen(pageFileName.c_str(), "a");
+        }
+
+        if (!pageFile) {
+            error(errIO, -1, "Couldn't open html file '{0:s}'", pageFileName.c_str());
+            return 1;
+        }
+
+        if (!singleHtml)
+            fprintf(pageFile, "%s\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"\" xml:lang=\"\">\n<head>\n<title>Page %d</title>\n\n", DOCTYPE, page);
+        else
+            fprintf(pageFile, "%s\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"\" xml:lang=\"\">\n<head>\n<title>%s</title>\n\n", DOCTYPE, pageFileName.c_str());
+
+        const std::string htmlEncoding = HtmlOutputDev::mapEncodingToHtml(globalParams->getTextEncodingName());
+        if (!singleHtml)
+            fprintf(pageFile, "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=%s\"/>\n", htmlEncoding.c_str());
+        else
+            fprintf(pageFile, "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=%s\"/>\n <br/>\n", htmlEncoding.c_str());
+    } else {
+        pageFile = file;
+        fprintf(pageFile, "<!-- Page %d -->\n", page);
+        fprintf(pageFile, "<a name=\"%d\"></a>\n", page);
+    }
+
+    return 0;
+}
+
+void HtmlPage::dumpComplex(FILE *file, int page, const std::vector<std::string> &backgroundImages)
+{
+    
+    bool singleHtml = false;
+    bool noframes = true;
+    bool ignore = false;
+    
+    FILE *pageFile;
+
+    if (firstPage == -1)
+        firstPage = page;
+
+    if (dumpComplexHeaders(file, pageFile, page)) {
+        error(errIO, -1, "Couldn't write headers.");
+        return;
+    }
+
+    fputs("<style type=\"text/css\">\n<!--\n", pageFile);
+    fputs("\tp {margin: 0; padding: 0;}", pageFile);
+    for (int i = fontsPageMarker; i != fonts->size(); i++) {
+        GooString *fontCSStyle;
+        if (!singleHtml)
+            fontCSStyle = fonts->CSStyle(i);
+        else
+            fontCSStyle = fonts->CSStyle(i, page);
+        fprintf(pageFile, "\t%s\n", fontCSStyle->c_str());
+        delete fontCSStyle;
+    }
+
+    fputs("-->\n</style>\n", pageFile);
+
+    if (!noframes) {
+        fputs("</head>\n<body bgcolor=\"#A0A0A0\" vlink=\"blue\" link=\"blue\">\n", pageFile);
+    }
+
+    fprintf(pageFile, "<div id=\"page%d-div\" style=\"position:relative;width:%dpx;height:%dpx;\">\n", page, pageWidth, pageHeight);
+
+    if (!ignore && (size_t)(page - firstPage) < backgroundImages.size()) {
+        fprintf(pageFile, "<img width=\"%d\" height=\"%d\" src=\"%s\" alt=\"background image\"/>\n", pageWidth, pageHeight, backgroundImages[page - firstPage].c_str());
+    }
+
+    for (HtmlString *tmp1 = yxStrings; tmp1; tmp1 = tmp1->yxNext) {
+        if (tmp1->htext) {
+            fprintf(pageFile, "<p style=\"position:absolute;top:%dpx;left:%dpx;white-space:nowrap\" class=\"ft", xoutRound(tmp1->yMin), xoutRound(tmp1->xMin));
+            if (!singleHtml) {
+                fputc('0', pageFile);
+            } else {
+                fprintf(pageFile, "%d", page);
+            }
+            fprintf(pageFile, "%d\">", tmp1->fontpos);
+            fputs(tmp1->htext->c_str(), pageFile);
+            fputs("</p>\n", pageFile);
+        }
+    }
+
+    fputs("</div>\n", pageFile);
+
+    if (!noframes) {
+        fputs("</body>\n</html>\n", pageFile);
+        fclose(pageFile);
+    }
+}
+
+void HtmlPage::dump(FILE *f, int pageNum, const std::vector<std::string> &backgroundImages)
+{
+    bool singleHtml = false;
+    bool complexMode = true;
+    bool xml = true;
+    
+    if (complexMode || singleHtml) {
+        if (xml)
+            dumpAsXML(f, pageNum);
+        if (!xml)
+            dumpComplex(f, pageNum, backgroundImages);
+    } else {
+        fprintf(f, "<a name=%d></a>", pageNum);
+        // Loop over the list of image names on this page
+        for (auto ptr : imgList) {
+            auto img = static_cast<HtmlImage *>(ptr);
+
+            // see printCSS() for class names
+            const char *styles[4] = { "", " class=\"xflip\"", " class=\"yflip\"", " class=\"xyflip\"" };
+            int style_index = 0;
+            if (img->xMin > img->xMax)
+                style_index += 1; // xFlip
+            if (img->yMin > img->yMax)
+                style_index += 2; // yFlip
+
+            fprintf(f, "<img%s src=\"%s\"/><br/>\n", styles[style_index], img->fName->c_str());
+            delete img;
+        }
+        imgList.clear();
+
+        GooString *str;
+        for (HtmlString *tmp = yxStrings; tmp; tmp = tmp->yxNext) {
+            if (tmp->htext) {
+                str = new GooString(tmp->htext);
+                fputs(str->c_str(), f);
+                delete str;
+                fputs("<br/>\n", f);
+            }
+        }
+        fputs("<hr/>\n", f);
+    }
+}
+
+void HtmlPage::clear()
+{
+    bool noframes = true;
+    
+    HtmlString *p1, *p2;
+
+    if (curStr) {
+        delete curStr;
+        curStr = nullptr;
+    }
+    for (p1 = yxStrings; p1; p1 = p2) {
+        p2 = p1->yxNext;
+        delete p1;
+    }
+    yxStrings = nullptr;
+    xyStrings = nullptr;
+    yxCur1 = yxCur2 = nullptr;
+
+    if (!noframes) {
+        delete fonts;
+        fonts = new HtmlFontAccu();
+        fontsPageMarker = 0;
+    } else {
+        fontsPageMarker = fonts->size();
+    }
+
+    delete links;
+    links = new HtmlLinks();
+}
+
+void HtmlPage::setDocName(const char *fname)
+{
+    DocName = new GooString(fname);
+}
+
+void HtmlPage::addImage(GooString *fname, GfxState *state)
+{
+    HtmlImage *img = new HtmlImage(fname, state);
+    imgList.push_back(img);
+}
+
+//------------------------------------------------------------------------
+// HtmlMetaVar
+//------------------------------------------------------------------------
+
+HtmlMetaVar::HtmlMetaVar(const char *_name, const char *_content)
+{
+    name = new GooString(_name);
+    content = new GooString(_content);
+}
+
+HtmlMetaVar::~HtmlMetaVar()
+{
+    delete name;
+    delete content;
+}
+
+GooString *HtmlMetaVar::toString() const
+{
+    GooString *result = new GooString("<meta name=\"");
+    result->append(name);
+    result->append("\" content=\"");
+    result->append(content);
+    result->append("\"/>");
+    return result;
+}
+
+//------------------------------------------------------------------------
+// HtmlOutputDev
+//------------------------------------------------------------------------
+
+static const char *HtmlEncodings[][2] = { { "Latin1", "ISO-8859-1" }, { nullptr, nullptr } };
+
+std::string HtmlOutputDev::mapEncodingToHtml(const std::string &encoding)
+{
+    for (int i = 0; HtmlEncodings[i][0] != nullptr; i++) {
+        if (encoding == HtmlEncodings[i][0]) {
+            return HtmlEncodings[i][1];
+        }
+    }
+    return encoding;
+}
+
+void HtmlOutputDev::doFrame(int firstPage)
+{
+    bool complexMode = true;
+    
+    GooString *fName = new GooString(Docname);
+    fName->append(".html");
+
+    if (!(fContentsFrame = fopen(fName->c_str(), "w"))) {
+        error(errIO, -1, "Couldn't open html file '{0:t}'", fName);
+        delete fName;
+        return;
+    }
+
+    delete fName;
+
+    const std::string baseName = gbasename(Docname->c_str());
+    fputs(DOCTYPE, fContentsFrame);
+    fputs("\n<html>", fContentsFrame);
+    fputs("\n<head>", fContentsFrame);
+    fprintf(fContentsFrame, "\n<title>%s</title>", docTitle->c_str());
+    const std::string htmlEncoding = mapEncodingToHtml(globalParams->getTextEncodingName());
+    fprintf(fContentsFrame, "\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=%s\"/>\n", htmlEncoding.c_str());
+    dumpMetaVars(fContentsFrame);
+    fprintf(fContentsFrame, "</head>\n");
+    fputs("<frameset cols=\"100,*\">\n", fContentsFrame);
+    fprintf(fContentsFrame, "<frame name=\"links\" src=\"%s_ind.html\"/>\n", baseName.c_str());
+    fputs("<frame name=\"contents\" src=", fContentsFrame);
+    if (complexMode)
+        fprintf(fContentsFrame, "\"%s-%d.html\"", baseName.c_str(), firstPage);
+    else
+        fprintf(fContentsFrame, "\"%ss.html\"", baseName.c_str());
+
+    fputs("/>\n</frameset>\n</html>\n", fContentsFrame);
+
+    fclose(fContentsFrame);
+}
+
+HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrderA, int firstPage, bool outline)
+{
+    bool complexMode = true;
+    bool xml = true;
+    bool stout = false;
+    bool noframes = true;
+    bool singleHtml = false;
+    
+    catalog = catalogA;
+    fContentsFrame = nullptr;
+    page = nullptr;
+    docTitle = new GooString(title);
+    pages = nullptr;
+    dumpJPEG = true;
+    // write = true;
+    rawOrder = rawOrderA;
+    this->doOutline = outline;
+    ok = false;
+    // this->firstPage = firstPage;
+    // pageNum=firstPage;
+    // open file
+    needClose = false;
+    pages = new HtmlPage(rawOrder);
+
+    glMetaVars.push_back(new HtmlMetaVar("generator", "pdftohtml 0.36"));
+    if (author)
+        glMetaVars.push_back(new HtmlMetaVar("author", author));
+    if (keywords)
+        glMetaVars.push_back(new HtmlMetaVar("keywords", keywords));
+    if (date)
+        glMetaVars.push_back(new HtmlMetaVar("date", date));
+    if (subject)
+        glMetaVars.push_back(new HtmlMetaVar("subject", subject));
+
+    maxPageWidth = 0;
+    maxPageHeight = 0;
+
+    pages->setDocName(fileName);
+    Docname = new GooString(fileName);
+
+    // for non-xml output (complex or simple) with frames generate the left frame
+    if (!xml && !noframes) {
+        if (!singleHtml) {
+            GooString *left = new GooString(fileName);
+            left->append("_ind.html");
+
+            doFrame(firstPage);
+
+            if (!(fContentsFrame = fopen(left->c_str(), "w"))) {
+                error(errIO, -1, "Couldn't open html file '{0:t}'", left);
+                delete left;
+                return;
+            }
+            delete left;
+            fputs(DOCTYPE, fContentsFrame);
+            fputs("<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"\" xml:lang=\"\">\n<head>\n<title></title>\n</head>\n<body>\n", fContentsFrame);
+
+            if (doOutline) {
+                fprintf(fContentsFrame, "<a href=\"%s%s\" target=\"contents\">Outline</a><br/>", gbasename(Docname->c_str()).c_str(), complexMode ? "-outline.html" : "s.html#outline");
+            }
+        }
+        if (!complexMode) { /* not in complex mode */
+
+            GooString *right = new GooString(fileName);
+            right->append("s.html");
+
+            if (!(page = fopen(right->c_str(), "w"))) {
+                error(errIO, -1, "Couldn't open html file '{0:t}'", right);
+                delete right;
+                return;
+            }
+            delete right;
+            fputs(DOCTYPE, page);
+            fputs("<html>\n<head>\n<title></title>\n", page);
+            printCSS(page);
+            fputs("</head>\n<body>\n", page);
+        }
+    }
+
+    if (noframes) {
+        if (stout)
+            page = stdout;
+        else {
+            GooString *right = new GooString(fileName);
+            if (!xml)
+                right->append(".html");
+            if (xml)
+                right->append(".xml");
+            if (!(page = fopen(right->c_str(), "w"))) {
+                error(errIO, -1, "Couldn't open html file '{0:t}'", right);
+                delete right;
+                return;
+            }
+            delete right;
+        }
+
+        const std::string htmlEncoding = mapEncodingToHtml(globalParams->getTextEncodingName());
+        if (xml) {
+            fprintf(page, "<?xml version=\"1.0\" encoding=\"%s\"?>\n", htmlEncoding.c_str());
+            fputs("<!DOCTYPE pdf2xml SYSTEM \"pdf2xml.dtd\">\n\n", page);
+            fprintf(page, "<pdf2xml producer=\"%s\" version=\"%s\">\n", "poppler", "22.02.0");
+        } else {
+            fprintf(page, "%s\n<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"\" xml:lang=\"\">\n<head>\n<title>%s</title>\n", DOCTYPE, docTitle->c_str());
+
+            fprintf(page, "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=%s\"/>\n", htmlEncoding.c_str());
+
+            dumpMetaVars(page);
+            printCSS(page);
+            fprintf(page, "</head>\n");
+            fprintf(page, "<body bgcolor=\"#A0A0A0\" vlink=\"blue\" link=\"blue\">\n");
+        }
+    }
+    ok = true;
+}
+
+HtmlOutputDev::~HtmlOutputDev()
+{
+    bool xml = true;
+    bool noframes = true;
+    bool complexMode = true;
+    
+    delete Docname;
+    delete docTitle;
+
+    for (auto entry : glMetaVars) {
+        delete entry;
+    }
+
+    if (fContentsFrame) {
+        fputs("</body>\n</html>\n", fContentsFrame);
+        fclose(fContentsFrame);
+    }
+    if (page != nullptr) {
+        if (xml) {
+            fputs("</pdf2xml>\n", page);
+            fclose(page);
+        } else if (!complexMode || xml || noframes) {
+            fputs("</body>\n</html>\n", page);
+            fclose(page);
+        }
+    }
+    if (pages)
+        delete pages;
+}
+
+void HtmlOutputDev::startPage(int pageNumA, GfxState *state, XRef *xref)
+{
+#if 0
+  if (mode&&!xml){
+    if (write){
+      write=false;
+      GooString* fname=Dirname(Docname);
+      fname->append("image.log");
+      if((tin=fopen(getFileNameFromPath(fname->c_str(),fname->getLength()),"w"))==NULL){
+    printf("Error : can not open %s",fname);
+    exit(1);
+      }
+      delete fname;
+    // if(state->getRotation()!=0)
+    //  fprintf(tin,"ROTATE=%d rotate %d neg %d neg translate\n",state->getRotation(),state->getX1(),-state->getY1());
+    // else
+      fprintf(tin,"ROTATE=%d neg %d neg translate\n",state->getX1(),state->getY1());
+    }
+  }
+#endif
+    
+    bool noframes = true;
+    bool complexMode = true;
+    
+    pageNum = pageNumA;
+    const std::string str = gbasename(Docname->c_str());
+    pages->clear();
+    if (!noframes) {
+        if (fContentsFrame) {
+            if (complexMode)
+                fprintf(fContentsFrame, "<a href=\"%s-%d.html\"", str.c_str(), pageNum);
+            else
+                fprintf(fContentsFrame, "<a href=\"%ss.html#%d\"", str.c_str(), pageNum);
+            fprintf(fContentsFrame, " target=\"contents\" >Page %d</a><br/>\n", pageNum);
+        }
+    }
+
+    pages->pageWidth = static_cast<int>(state->getPageWidth());
+    pages->pageHeight = static_cast<int>(state->getPageHeight());
+}
+
+void HtmlOutputDev::endPage()
+{
+    bool stout = false;
+    
+    std::unique_ptr<Links> linksList = docPage->getLinks();
+    for (int i = 0; i < linksList->getNumLinks(); ++i) {
+        doProcessLink(linksList->getLink(i));
+    }
+
+    pages->conv();
+    pages->coalesce();
+    pages->dump(page, pageNum, backgroundImages);
+
+    // I don't yet know what to do in the case when there are pages of different
+    // sizes and we want complex output: running ghostscript many times
+    // seems very inefficient. So for now I'll just use last page's size
+    maxPageWidth = pages->pageWidth;
+    maxPageHeight = pages->pageHeight;
+
+    // if(!noframes&&!xml) fputs("<br/>\n", fContentsFrame);
+    if (!stout && !globalParams->getErrQuiet())
+        printf("Page-%d\n", (pageNum));
+}
+
+void HtmlOutputDev::addBackgroundImage(const std::string &img)
+{
+    backgroundImages.push_back(img);
+}
+
+void HtmlOutputDev::updateFont(GfxState *state)
+{
+    pages->updateFont(state);
+}
+
+void HtmlOutputDev::beginString(GfxState *state, const GooString *s)
+{
+    pages->beginString(state, s);
+}
+
+void HtmlOutputDev::endString(GfxState *state)
+{
+    pages->endString();
+}
+
+void HtmlOutputDev::drawChar(GfxState *state, double x, double y, double dx, double dy, double originX, double originY, CharCode code, int /*nBytes*/, const Unicode *u, int uLen)
+{
+    bool showHidden = true;
+    
+    if (!showHidden && (state->getRender() & 3) == 3) {
+        return;
+    }
+    pages->addChar(state, x, y, dx, dy, originX, originY, u, uLen);
+}
+
+void HtmlOutputDev::drawJpegImage(GfxState *state, Stream *str)
+{
+    bool dataUrls = false;
+    
+    InMemoryFile ims;
+    FILE *f1 = nullptr;
+    int c;
+
+    // open the image file
+    GooString *fName = createImageFileName("jpg");
+    f1 = dataUrls ? ims.open("wb") : fopen(fName->c_str(), "wb");
+    if (!f1) {
+        error(errIO, -1, "Couldn't open image file '{0:t}'", fName);
+        delete fName;
+        return;
+    }
+
+    // initialize stream
+    str = str->getNextStream();
+    str->reset();
+
+    // copy the stream
+    while ((c = str->getChar()) != EOF)
+        fputc(c, f1);
+
+    fclose(f1);
+
+    if (dataUrls) {
+        delete fName;
+        fName = new GooString(std::string("data:image/jpeg;base64,") + gbase64Encode(ims.getBuffer()));
+    }
+    pages->addImage(fName, state);
+}
+
+void HtmlOutputDev::drawPngImage(GfxState *state, Stream *str, int width, int height, GfxImageColorMap *colorMap, bool isMask)
+{
+    
+    bool dataUrls = false;
+    
+#ifdef ENABLE_LIBPNG
+    FILE *f1;
+    InMemoryFile ims;
+
+    if (!colorMap && !isMask) {
+        error(errInternal, -1, "Can't have color image without a color map");
+        return;
+    }
+
+    // open the image file
+    GooString *fName = createImageFileName("png");
+    f1 = dataUrls ? ims.open("wb") : fopen(fName->c_str(), "wb");
+    if (!f1) {
+        error(errIO, -1, "Couldn't open image file '{0:t}'", fName);
+        delete fName;
+        return;
+    }
+
+    PNGWriter *writer = new PNGWriter(isMask ? PNGWriter::MONOCHROME : PNGWriter::RGB);
+    // TODO can we calculate the resolution of the image?
+    if (!writer->init(f1, width, height, 72, 72)) {
+        error(errInternal, -1, "Can't init PNG for image '{0:t}'", fName);
+        delete writer;
+        fclose(f1);
+        return;
+    }
+
+    if (!isMask) {
+        unsigned char *p;
+        GfxRGB rgb;
+        png_byte *row = (png_byte *)gmalloc(3 * width); // 3 bytes/pixel: RGB
+        png_bytep *row_pointer = &row;
+
+        // Initialize the image stream
+        ImageStream *imgStr = new ImageStream(str, width, colorMap->getNumPixelComps(), colorMap->getBits());
+        imgStr->reset();
+
+        // For each line...
+        for (int y = 0; y < height; y++) {
+
+            // Convert into a PNG row
+            p = imgStr->getLine();
+            if (!p) {
+                error(errIO, -1, "Failed to read PNG. '{0:t}' will be incorrect", fName);
+                delete fName;
+                gfree(row);
+                delete writer;
+                delete imgStr;
+                fclose(f1);
+                return;
+            }
+            for (int x = 0; x < width; x++) {
+                colorMap->getRGB(p, &rgb);
+                // Write the RGB pixels into the row
+                row[3 * x] = colToByte(rgb.r);
+                row[3 * x + 1] = colToByte(rgb.g);
+                row[3 * x + 2] = colToByte(rgb.b);
+                p += colorMap->getNumPixelComps();
+            }
+
+            if (!writer->writeRow(row_pointer)) {
+                error(errIO, -1, "Failed to write into PNG '{0:t}'", fName);
+                delete writer;
+                delete imgStr;
+                fclose(f1);
+                return;
+            }
+        }
+        gfree(row);
+        imgStr->close();
+        delete imgStr;
+    } else { // isMask == true
+        int size = (width + 7) / 8;
+
+        // PDF masks use 0 = draw current color, 1 = leave unchanged.
+        // We invert this to provide the standard interpretation of alpha
+        // (0 = transparent, 1 = opaque). If the colorMap already inverts
+        // the mask we leave the data unchanged.
+        int invert_bits = 0xff;
+        if (colorMap) {
+            GfxGray gray;
+            unsigned char zero[gfxColorMaxComps];
+            memset(zero, 0, sizeof(zero));
+            colorMap->getGray(zero, &gray);
+            if (colToByte(gray) == 0)
+                invert_bits = 0x00;
+        }
+
+        str->reset();
+        unsigned char *png_row = (unsigned char *)gmalloc(size);
+
+        for (int ri = 0; ri < height; ++ri) {
+            for (int i = 0; i < size; i++)
+                png_row[i] = str->getChar() ^ invert_bits;
+
+            if (!writer->writeRow(&png_row)) {
+                error(errIO, -1, "Failed to write into PNG '{0:t}'", fName);
+                delete writer;
+                fclose(f1);
+                gfree(png_row);
+                return;
+            }
+        }
+        str->close();
+        gfree(png_row);
+    }
+
+    str->close();
+
+    writer->close();
+    delete writer;
+    fclose(f1);
+
+    if (dataUrls) {
+        delete fName;
+        fName = new GooString(std::string("data:image/png;base64,") + gbase64Encode(ims.getBuffer()));
+    }
+    pages->addImage(fName, state);
+#else
+    return;
+#endif
+}
+
+GooString *HtmlOutputDev::createImageFileName(const char *ext)
+{
+    return GooString::format("{0:s}-{1:d}_{2:d}.{3:s}", Docname->c_str(), pageNum, pages->getNumImages() + 1, ext);
+}
+
+void HtmlOutputDev::drawImageMask(GfxState *state, Object *ref, Stream *str, int width, int height, bool invert, bool interpolate, bool inlineImg)
+{
+    
+    bool complexMode = true;
+    bool ignore = false;
+    bool xml = true;
+    
+    if (ignore || (complexMode && !xml)) {
+        OutputDev::drawImageMask(state, ref, str, width, height, invert, interpolate, inlineImg);
+        return;
+    }
+
+    // dump JPEG file
+    if (dumpJPEG && str->getKind() == strDCT) {
+        drawJpegImage(state, str);
+    } else {
+#ifdef ENABLE_LIBPNG
+        drawPngImage(state, str, width, height, nullptr, true);
+#else
+        OutputDev::drawImageMask(state, ref, str, width, height, invert, interpolate, inlineImg);
+#endif
+    }
+}
+
+void HtmlOutputDev::drawImage(GfxState *state, Object *ref, Stream *str, int width, int height, GfxImageColorMap *colorMap, bool interpolate, const int *maskColors, bool inlineImg)
+{
+
+    bool complexMode = true;
+    bool ignore = false;
+    bool xml = true;
+    
+    if (ignore || (complexMode && !xml)) {
+        OutputDev::drawImage(state, ref, str, width, height, colorMap, interpolate, maskColors, inlineImg);
+        return;
+    }
+
+    /*if( !globalParams->getErrQuiet() )
+      printf("image stream of kind %d\n", str->getKind());*/
+    // dump JPEG file
+    if (dumpJPEG && str->getKind() == strDCT && (colorMap->getNumPixelComps() == 1 || colorMap->getNumPixelComps() == 3) && !inlineImg) {
+        drawJpegImage(state, str);
+    } else {
+#ifdef ENABLE_LIBPNG
+        drawPngImage(state, str, width, height, colorMap);
+#else
+        OutputDev::drawImage(state, ref, str, width, height, colorMap, interpolate, maskColors, inlineImg);
+#endif
+    }
+}
+
+void HtmlOutputDev::doProcessLink(AnnotLink *link)
+{
+    double _x1, _y1, _x2, _y2;
+    int x1, y1, x2, y2;
+
+    link->getRect(&_x1, &_y1, &_x2, &_y2);
+    cvtUserToDev(_x1, _y1, &x1, &y1);
+
+    cvtUserToDev(_x2, _y2, &x2, &y2);
+
+    GooString *_dest = getLinkDest(link);
+    HtmlLink t((double)x1, (double)y2, (double)x2, (double)y1, _dest);
+    pages->AddLink(t);
+    delete _dest;
+}
+
+GooString *HtmlOutputDev::getLinkDest(AnnotLink *link)
+{
+    bool complexMode = true;
+    bool printHtml = false;
+    bool printCommands = false;
+    bool noframes = true;
+    
+    if (!link->getAction())
+        return new GooString();
+    switch (link->getAction()->getKind()) {
+    case actionGoTo: {
+        int destPage = 1;
+        LinkGoTo *ha = (LinkGoTo *)link->getAction();
+        std::unique_ptr<LinkDest> dest;
+        if (ha->getDest() != nullptr)
+            dest = std::unique_ptr<LinkDest>(ha->getDest()->copy());
+        else if (ha->getNamedDest() != nullptr)
+            dest = catalog->findDest(ha->getNamedDest());
+
+        if (dest) {
+            GooString *file = new GooString(gbasename(Docname->c_str()));
+
+            if (dest->isPageRef()) {
+                const Ref pageref = dest->getPageRef();
+                destPage = catalog->findPage(pageref);
+            } else {
+                destPage = dest->getPageNum();
+            }
+
+            /*         complex     simple
+              frames        file-4.html    files.html#4
+              noframes    file.html#4    file.html#4
+             */
+            if (noframes) {
+                file->append(".html#");
+                file->append(std::to_string(destPage));
+            } else {
+                if (complexMode) {
+                    file->append("-");
+                    file->append(std::to_string(destPage));
+                    file->append(".html");
+                } else {
+                    file->append("s.html#");
+                    file->append(std::to_string(destPage));
+                }
+            }
+
+            if (printCommands)
+                printf(" link to page %d ", destPage);
+            return file;
+        } else {
+            return new GooString();
+        }
+    }
+    case actionGoToR: {
+        LinkGoToR *ha = (LinkGoToR *)link->getAction();
+        LinkDest *dest = nullptr;
+        int destPage = 1;
+        GooString *file = new GooString();
+        if (ha->getFileName()) {
+            delete file;
+            file = new GooString(ha->getFileName()->c_str());
+        }
+        if (ha->getDest() != nullptr)
+            dest = ha->getDest()->copy();
+        if (dest && file) {
+            if (!(dest->isPageRef()))
+                destPage = dest->getPageNum();
+            delete dest;
+
+            if (printCommands)
+                printf(" link to page %d ", destPage);
+            if (printHtml) {
+                const char *p = file->c_str() + file->getLength() - 4;
+                if (!strcmp(p, ".pdf") || !strcmp(p, ".PDF")) {
+                    file->del(file->getLength() - 4, 4);
+                    file->append(".html");
+                }
+                file->append('#');
+                file->append(std::to_string(destPage));
+            }
+        }
+        if (printCommands && file)
+            printf("filename %s\n", file->c_str());
+        return file;
+    }
+    case actionURI: {
+        LinkURI *ha = (LinkURI *)link->getAction();
+        GooString *file = new GooString(ha->getURI());
+        // printf("uri : %s\n",file->c_str());
+        return file;
+    }
+    case actionLaunch:
+        if (printHtml) {
+            LinkLaunch *ha = (LinkLaunch *)link->getAction();
+            GooString *file = new GooString(ha->getFileName()->c_str());
+            const char *p = file->c_str() + file->getLength() - 4;
+            if (!strcmp(p, ".pdf") || !strcmp(p, ".PDF")) {
+                file->del(file->getLength() - 4, 4);
+                file->append(".html");
+            }
+            if (printCommands)
+                printf("filename %s", file->c_str());
+
+            return file;
+        }
+        // fallthrough
+    default:
+        return new GooString();
+    }
+}
+
+void HtmlOutputDev::dumpMetaVars(FILE *file)
+{
+    GooString *var;
+
+    for (const HtmlMetaVar *t : glMetaVars) {
+        var = t->toString();
+        fprintf(file, "%s\n", var->c_str());
+        delete var;
+    }
+}
+
+bool HtmlOutputDev::dumpDocOutline(PDFDoc *doc)
+{
+    bool complexMode = true;
+    bool noframes = true;
+    bool xml = true;
+    
+    FILE *output = nullptr;
+    bool bClose = false;
+
+    if (!ok)
+        return false;
+
+    Outline *outline = doc->getOutline();
+    if (!outline)
+        return false;
+
+    const std::vector<OutlineItem *> *outlines = outline->getItems();
+    if (!outlines)
+        return false;
+
+    if (!complexMode || xml) {
+        output = page;
+    } else if (complexMode && !xml) {
+        if (noframes) {
+            output = page;
+            fputs("<hr/>\n", output);
+        } else {
+            GooString *str = Docname->copy();
+            str->append("-outline.html");
+            output = fopen(str->c_str(), "w");
+            delete str;
+            if (output == nullptr)
+                return false;
+            bClose = true;
+
+            const std::string htmlEncoding = HtmlOutputDev::mapEncodingToHtml(globalParams->getTextEncodingName());
+
+            fprintf(output,
+                    "<html xmlns=\"http://www.w3.org/1999/xhtml\" "
+                    "lang=\"\" xml:lang=\"\">\n"
+                    "<head>\n"
+                    "<title>Document Outline</title>\n"
+                    "<meta http-equiv=\"Content-Type\" content=\"text/html; "
+                    "charset=%s\"/>\n"
+                    "</head>\n<body>\n",
+                    htmlEncoding.c_str());
+        }
+    }
+
+    if (!xml) {
+        bool done = newHtmlOutlineLevel(output, outlines);
+        if (done && !complexMode)
+            fputs("<hr/>\n", output);
+
+        if (bClose) {
+            fputs("</body>\n</html>\n", output);
+            fclose(output);
+        }
+    } else
+        newXmlOutlineLevel(output, outlines);
+
+    return true;
+}
+
+bool HtmlOutputDev::newHtmlOutlineLevel(FILE *output, const std::vector<OutlineItem *> *outlines, int level)
+{
+    bool complexMode = true;
+    bool atLeastOne = false;
+    bool noframes = true;
+    
+    if (level == 1) {
+        fputs("<a name=\"outline\"></a>", output);
+        fputs("<h1>Document Outline</h1>\n", output);
+    }
+    fputs("<ul>\n", output);
+
+    for (OutlineItem *item : *outlines) {
+        GooString *titleStr = HtmlFont::HtmlFilter(item->getTitle(), item->getTitleLength());
+
+        GooString *linkName = nullptr;
+        ;
+        const int itemPage = getOutlinePageNum(item);
+        if (itemPage > 0) {
+            /*        complex        simple
+            frames        file-4.html    files.html#4
+            noframes    file.html#4    file.html#4
+            */
+            linkName = new GooString(gbasename(Docname->c_str()));
+            if (noframes) {
+                linkName->append(".html#");
+                linkName->append(std::to_string(itemPage));
+            } else {
+                if (complexMode) {
+                    linkName->append("-");
+                    linkName->append(std::to_string(itemPage));
+                    linkName->append(".html");
+                } else {
+                    linkName->append("s.html#");
+                    linkName->append(std::to_string(itemPage));
+                }
+            }
+        }
+
+        fputs("<li>", output);
+        if (linkName)
+            fprintf(output, "<a href=\"%s\">", linkName->c_str());
+        fputs(titleStr->c_str(), output);
+        if (linkName) {
+            fputs("</a>", output);
+            delete linkName;
+        }
+        delete titleStr;
+        atLeastOne = true;
+
+        item->open();
+        if (item->hasKids() && item->getKids()) {
+            fputs("\n", output);
+            newHtmlOutlineLevel(output, item->getKids(), level + 1);
+        }
+        fputs("</li>\n", output);
+    }
+    fputs("</ul>\n", output);
+
+    return atLeastOne;
+}
+
+void HtmlOutputDev::newXmlOutlineLevel(FILE *output, const std::vector<OutlineItem *> *outlines)
+{
+    fputs("<outline>\n", output);
+
+    for (OutlineItem *item : *outlines) {
+        GooString *titleStr = HtmlFont::HtmlFilter(item->getTitle(), item->getTitleLength());
+        const int itemPage = getOutlinePageNum(item);
+        if (itemPage > 0) {
+            fprintf(output, "<item page=\"%d\">%s</item>\n", itemPage, titleStr->c_str());
+        } else {
+            fprintf(output, "<item>%s</item>\n", titleStr->c_str());
+        }
+        delete titleStr;
+
+        item->open();
+        if (item->hasKids() && item->getKids()) {
+            newXmlOutlineLevel(output, item->getKids());
+        }
+    }
+
+    fputs("</outline>\n", output);
+}
+
+int HtmlOutputDev::getOutlinePageNum(OutlineItem *item)
+{
+    const LinkAction *action = item->getAction();
+    const LinkGoTo *link = nullptr;
+    std::unique_ptr<LinkDest> linkdest;
+    int pagenum = -1;
+
+    if (!action || action->getKind() != actionGoTo)
+        return pagenum;
+
+    link = static_cast<const LinkGoTo *>(action);
+
+    if (!link || !link->isOk())
+        return pagenum;
+
+    if (link->getDest())
+        linkdest = std::unique_ptr<LinkDest>(link->getDest()->copy());
+    else if (link->getNamedDest())
+        linkdest = catalog->findDest(link->getNamedDest());
+
+    if (!linkdest)
+        return pagenum;
+
+    if (linkdest->isPageRef()) {
+        const Ref pageref = linkdest->getPageRef();
+        pagenum = catalog->findPage(pageref);
+    } else {
+        pagenum = linkdest->getPageNum();
+    }
+
+    return pagenum;
+}
+
+#pragma mark HtmlFonts.cc
+
+//========================================================================
+//
+// This file comes from pdftohtml project
+// http://pdftohtml.sourceforge.net
+//
+// Copyright from:
+// Gueorgui Ovtcharov
+// Rainer Dorsch <http://www.ra.informatik.uni-stuttgart.de/~rainer/>
+// Mikhail Kruk <meshko@cs.brandeis.edu>
+//
+//========================================================================
+
+//========================================================================
+//
+// Modified under the Poppler project - http://poppler.freedesktop.org
+//
+// All changes made under the Poppler project to this file are licensed
+// under GPL version 2 or later
+//
+// Copyright (C) 2007, 2010, 2012, 2018, 2020 Albert Astals Cid <aacid@kde.org>
+// Copyright (C) 2008 Boris Toloknov <tlknv@yandex.ru>
+// Copyright (C) 2008 Tomas Are Haavet <tomasare@gmail.com>
+// Copyright (C) 2010 OSSD CDAC Mumbai by Leena Chourey (leenac@cdacmumbai.in) and Onkar Potdar (onkar@cdacmumbai.in)
+// Copyright (C) 2011 Joshua Richardson <jric@chegg.com>
+// Copyright (C) 2011 Stephen Reichling <sreichling@chegg.com>
+// Copyright (C) 2012 Igor Slepchin <igor.slepchin@gmail.com>
+// Copyright (C) 2012 Luis Parravicini <lparravi@gmail.com>
+// Copyright (C) 2013 Julien Nabet <serval2412@yahoo.fr>
+// Copyright (C) 2017 Jason Crain <jason@inspiresomeone.us>
+// Copyright (C) 2018 Klarälvdalens Datakonsult AB, a KDAB Group company, <info@kdab.com>. Work sponsored by the LiMux project of the city of Munich
+// Copyright (C) 2018 Steven Boswell <ulatekh@yahoo.com>
+// Copyright (C) 2018 Adam Reichold <adam.reichold@t-online.de>
+// Copyright (C) 2019 Oliver Sander <oliver.sander@tu-dresden.de>
+// Copyright (C) 2020 Eddie Kohler <ekohler@gmail.com>
+//
+// To see a description of the changes please see the Changelog file that
+// came with your tarball or type make ChangeLog if you are building from git
+//
+//========================================================================
+
+#include "HtmlFonts.h"
+#include "HtmlUtils.h"
+#include "GlobalParams.h"
+#include "UnicodeMap.h"
+#include "GfxFont.h"
+#include <cstdio>
+
+namespace {
+
+const char *const defaultFamilyName = "Times";
+
+const char *const styleSuffixes[] = {
+    "-Regular", "-Bold", "-BoldOblique", "-BoldItalic", "-Oblique", "-Italic", "-Roman",
+};
+
+void removeStyleSuffix(std::string &familyName)
+{
+    for (const char *const styleSuffix : styleSuffixes) {
+        auto pos = familyName.rfind(styleSuffix);
+        if (pos != std::string::npos) {
+            familyName.resize(pos);
+            return;
+        }
+    }
+}
+
+}
+
+#define xoutRound(x) ((int)(x + 0.5))
+//extern bool xml;
+//extern bool fontFullName;
+
+HtmlFontColor::HtmlFontColor(GfxRGB rgb, double opacity_)
+{
+    r = static_cast<int>(rgb.r / 65535.0 * 255.0);
+    g = static_cast<int>(rgb.g / 65535.0 * 255.0);
+    b = static_cast<int>(rgb.b / 65535.0 * 255.0);
+    opacity = static_cast<int>(opacity_ * 255.999);
+    if (!(Ok(r) && Ok(b) && Ok(g) && Ok(opacity))) {
+        if (!globalParams->getErrQuiet())
+            fprintf(stderr, "Error : Bad color (%d,%d,%d,%d) reset to (0,0,0,255)\n", r, g, b, opacity);
+        r = 0;
+        g = 0;
+        b = 0;
+        opacity = 255;
+    }
+}
+
+GooString *HtmlFontColor::convtoX(unsigned int xcol) const
+{
+    GooString *xret = new GooString();
+    char tmp;
+    unsigned int k;
+    k = (xcol / 16);
+    if (k < 10)
+        tmp = (char)('0' + k);
+    else
+        tmp = (char)('a' + k - 10);
+    xret->append(tmp);
+    k = (xcol % 16);
+    if (k < 10)
+        tmp = (char)('0' + k);
+    else
+        tmp = (char)('a' + k - 10);
+    xret->append(tmp);
+    return xret;
+}
+
+GooString *HtmlFontColor::toString() const
+{
+    GooString *tmp = new GooString("#");
+    GooString *tmpr = convtoX(r);
+    GooString *tmpg = convtoX(g);
+    GooString *tmpb = convtoX(b);
+    tmp->append(tmpr);
+    tmp->append(tmpg);
+    tmp->append(tmpb);
+    delete tmpr;
+    delete tmpg;
+    delete tmpb;
+    return tmp;
+}
+
+HtmlFont::HtmlFont(GfxFont *font, int _size, GfxRGB rgb, double opacity)
+{
+    color = HtmlFontColor(rgb, opacity);
+
+    lineSize = -1;
+
+    size = _size;
+    italic = false;
+    bold = false;
+    rotOrSkewed = false;
+
+    if (font->isBold() || font->getWeight() >= GfxFont::W700)
+        bold = true;
+    if (font->isItalic())
+        italic = true;
+
+    if (const GooString *fontname = font->getName()) {
+        FontName = new GooString(fontname);
+
+        GooString fontnameLower(fontname);
+        fontnameLower.lowerCase();
+
+        if (!bold && strstr(fontnameLower.c_str(), "bold")) {
+            bold = true;
+        }
+
+        if (!italic && (strstr(fontnameLower.c_str(), "italic") || strstr(fontnameLower.c_str(), "oblique"))) {
+            italic = true;
+        }
+
+        familyName = fontname->c_str();
+        removeStyleSuffix(familyName);
+    } else {
+        FontName = new GooString(defaultFamilyName);
+        familyName = defaultFamilyName;
+    }
+
+    rotSkewMat[0] = rotSkewMat[1] = rotSkewMat[2] = rotSkewMat[3] = 0;
+}
+
+HtmlFont::HtmlFont(const HtmlFont &x)
+{
+    size = x.size;
+    lineSize = x.lineSize;
+    italic = x.italic;
+    bold = x.bold;
+    familyName = x.familyName;
+    color = x.color;
+    FontName = new GooString(x.FontName);
+    rotOrSkewed = x.rotOrSkewed;
+    memcpy(rotSkewMat, x.rotSkewMat, sizeof(rotSkewMat));
+}
+
+HtmlFont::~HtmlFont()
+{
+    delete FontName;
+}
+
+HtmlFont &HtmlFont::operator=(const HtmlFont &x)
+{
+    if (this == &x)
+        return *this;
+    size = x.size;
+    lineSize = x.lineSize;
+    italic = x.italic;
+    bold = x.bold;
+    familyName = x.familyName;
+    color = x.color;
+    delete FontName;
+    FontName = new GooString(x.FontName);
+    return *this;
+}
+
+/*
+  This function is used to compare font uniquely for insertion into
+  the list of all encountered fonts
+*/
+bool HtmlFont::isEqual(const HtmlFont &x) const
+{
+    return (size == x.size) && (lineSize == x.lineSize) && (FontName->cmp(x.FontName) == 0) && (bold == x.bold) && (italic == x.italic) && (color.isEqual(x.getColor())) && isRotOrSkewed() == x.isRotOrSkewed()
+            && (!isRotOrSkewed() || rot_matrices_equal(getRotMat(), x.getRotMat()));
+}
+
+/*
+  This one is used to decide whether two pieces of text can be joined together
+  and therefore we don't care about bold/italics properties
+*/
+bool HtmlFont::isEqualIgnoreBold(const HtmlFont &x) const
+{
+    return ((size == x.size) && (familyName == x.familyName) && (color.isEqual(x.getColor())));
+}
+
+GooString *HtmlFont::getFontName()
+{
+    return new GooString(familyName);
+}
+
+GooString *HtmlFont::getFullName()
+{
+    return new GooString(FontName);
+}
+
+// this method if plain wrong todo
+GooString *HtmlFont::HtmlFilter(const Unicode *u, int uLen)
+{
+    bool xml = true;
+    
+    GooString *tmp = new GooString();
+    const UnicodeMap *uMap;
+    char buf[8];
+    int n;
+
+    // get the output encoding
+    if (!(uMap = globalParams->getTextEncoding())) {
+        return tmp;
+    }
+
+    for (int i = 0; i < uLen; ++i) {
+        // skip control characters.  W3C disallows them and they cause a warning
+        // with PHP.
+        if (u[i] <= 31 && u[i] != '\t')
+            continue;
+
+        switch (u[i]) {
+        case '"':
+            tmp->append("&#34;");
+            break;
+        case '&':
+            tmp->append("&amp;");
+            break;
+        case '<':
+            tmp->append("&lt;");
+            break;
+        case '>':
+            tmp->append("&gt;");
+            break;
+        case ' ':
+        case '\t':
+            tmp->append(!xml && (i + 1 >= uLen || !tmp->getLength() || tmp->getChar(tmp->getLength() - 1) == ' ') ? "&#160;" : " ");
+            break;
+        default: {
+            // convert unicode to string
+            if ((n = uMap->mapUnicode(u[i], buf, sizeof(buf))) > 0) {
+                tmp->append(buf, n);
+            }
+        }
+        }
+    }
+
+    return tmp;
+}
+
+HtmlFontAccu::HtmlFontAccu() { }
+
+HtmlFontAccu::~HtmlFontAccu() { }
+
+int HtmlFontAccu::AddFont(const HtmlFont &font)
+{
+    std::vector<HtmlFont>::iterator i;
+    for (i = accu.begin(); i != accu.end(); ++i) {
+        if (font.isEqual(*i)) {
+            return (int)(i - (accu.begin()));
+        }
+    }
+
+    accu.push_back(font);
+    return (accu.size() - 1);
+}
+
+// get CSS font definition for font #i
+GooString *HtmlFontAccu::CSStyle(int i, int j)
+{
+    bool fontFullName = false;
+    bool xml = true;
+    
+    GooString *tmp = new GooString();
+
+    std::vector<HtmlFont>::iterator g = accu.begin();
+    g += i;
+    HtmlFont font = *g;
+    GooString *colorStr = font.getColor().toString();
+    GooString *fontName = (fontFullName ? font.getFullName() : font.getFontName());
+
+    if (!xml) {
+        tmp->append(".ft");
+        tmp->append(std::to_string(j));
+        tmp->append(std::to_string(i));
+        tmp->append("{font-size:");
+        tmp->append(std::to_string(font.getSize()));
+        if (font.getLineSize() != -1 && font.getLineSize() != 0) {
+            tmp->append("px;line-height:");
+            tmp->append(std::to_string(font.getLineSize()));
+        }
+        tmp->append("px;font-family:");
+        tmp->append(fontName); // font.getFontName());
+        tmp->append(";color:");
+        tmp->append(colorStr);
+        if (font.getColor().getOpacity() != 1.0) {
+            tmp->append(";opacity:");
+            tmp->append(std::to_string(font.getColor().getOpacity()));
+        }
+        // if there is rotation or skew, include the matrix
+        if (font.isRotOrSkewed()) {
+            const double *const text_mat = font.getRotMat();
+            GooString matrix_str(" matrix(");
+            matrix_str.appendf("{0:10.10g}, {1:10.10g}, {2:10.10g}, {3:10.10g}, 0, 0)", text_mat[0], text_mat[1], text_mat[2], text_mat[3]);
+            tmp->append(";-moz-transform:");
+            tmp->append(&matrix_str);
+            tmp->append(";-webkit-transform:");
+            tmp->append(&matrix_str);
+            tmp->append(";-o-transform:");
+            tmp->append(&matrix_str);
+            tmp->append(";-ms-transform:");
+            tmp->append(&matrix_str);
+            // Todo: 75% is a wild guess that seems to work pretty well;
+            // We probably need to calculate the real percentage
+            // Based on the characteristic baseline and bounding box of current font
+            // PDF origin is at baseline
+            tmp->append(";-moz-transform-origin: left 75%");
+            tmp->append(";-webkit-transform-origin: left 75%");
+            tmp->append(";-o-transform-origin: left 75%");
+            tmp->append(";-ms-transform-origin: left 75%");
+        }
+        tmp->append(";}");
+    }
+    if (xml) {
+        tmp->append("<fontspec id=\"");
+        tmp->append(std::to_string(i));
+        tmp->append("\" size=\"");
+        tmp->append(std::to_string(font.getSize()));
+        tmp->append("\" family=\"");
+        tmp->append(fontName);
+        tmp->append("\" color=\"");
+        tmp->append(colorStr);
+        if (font.getColor().getOpacity() != 1.0) {
+            tmp->append("\" opacity=\"");
+            tmp->append(std::to_string(font.getColor().getOpacity()));
+        }
+        tmp->append("\"/>");
+    }
+
+    delete fontName;
+    delete colorStr;
+    return tmp;
+}
+
+#pragma mark HtmlLinks.cc
+
+//========================================================================
+//
+// This file comes from pdftohtml project
+// http://pdftohtml.sourceforge.net
+//
+// Copyright from:
+// Gueorgui Ovtcharov
+// Rainer Dorsch <http://www.ra.informatik.uni-stuttgart.de/~rainer/>
+// Mikhail Kruk <meshko@cs.brandeis.edu>
+//
+//========================================================================
+
+//========================================================================
+//
+// Modified under the Poppler project - http://poppler.freedesktop.org
+//
+// All changes made under the Poppler project to this file are licensed
+// under GPL version 2 or later
+//
+// Copyright (C) 2008 Boris Toloknov <tlknv@yandex.ru>
+// Copyright (C) 2010, 2021 Albert Astals Cid <aacid@kde.org>
+// Copyright (C) 2013 Julien Nabet <serval2412@yahoo.fr>
+//
+// To see a description of the changes please see the Changelog file that
+// came with your tarball or type make ChangeLog if you are building from git
+//
+//========================================================================
+
+#include "HtmlLinks.h"
+
+//extern bool xml;
+
+HtmlLink::HtmlLink(const HtmlLink &x)
+{
+    Xmin = x.Xmin;
+    Ymin = x.Ymin;
+    Xmax = x.Xmax;
+    Ymax = x.Ymax;
+    dest = new GooString(x.dest);
+}
+
+HtmlLink::HtmlLink(double xmin, double ymin, double xmax, double ymax, GooString *_dest)
+{
+    if (xmin < xmax) {
+        Xmin = xmin;
+        Xmax = xmax;
+    } else {
+        Xmin = xmax;
+        Xmax = xmin;
+    }
+    if (ymin < ymax) {
+        Ymin = ymin;
+        Ymax = ymax;
+    } else {
+        Ymin = ymax;
+        Ymax = ymin;
+    }
+    dest = new GooString(_dest);
+}
+
+HtmlLink::~HtmlLink()
+{
+    delete dest;
+}
+
+bool HtmlLink::isEqualDest(const HtmlLink &x) const
+{
+    return (!strcmp(dest->c_str(), x.dest->c_str()));
+}
+
+bool HtmlLink::inLink(double xmin, double ymin, double xmax, double ymax) const
+{
+    double y = (ymin + ymax) / 2;
+    if (y > Ymax)
+        return false;
+    return (y > Ymin) && (xmin < Xmax) && (xmax > Xmin);
+}
+
+static GooString *EscapeSpecialChars(GooString *s)
+{
+    GooString *tmp = nullptr;
+    for (int i = 0, j = 0; i < s->getLength(); i++, j++) {
+        const char *replace = nullptr;
+        switch (s->getChar(i)) {
+        case '"':
+            replace = "&quot;";
+            break;
+        case '&':
+            replace = "&amp;";
+            break;
+        case '<':
+            replace = "&lt;";
+            break;
+        case '>':
+            replace = "&gt;";
+            break;
+        default:
+            continue;
+        }
+        if (replace) {
+            if (!tmp)
+                tmp = new GooString(s);
+            if (tmp) {
+                tmp->del(j, 1);
+                int l = strlen(replace);
+                tmp->insert(j, replace, l);
+                j += l - 1;
+            }
+        }
+    }
+    return tmp ? tmp : s;
+}
+
+GooString *HtmlLink::getLinkStart() const
+{
+    bool xml = true;
+    
+    GooString *res = new GooString("<a href=\"");
+    GooString *d = xml ? EscapeSpecialChars(dest) : dest;
+    res->append(d);
+    if (d != dest)
+        delete d;
+    res->append("\">");
+    return res;
+}
+
+/*GooString* HtmlLink::Link(GooString* content){
+  //GooString* _dest=new GooString(dest);
+  GooString *tmp=new GooString("<a href=\"");
+  tmp->append(dest);
+  tmp->append("\">");
+  tmp->append(content);
+  tmp->append("</a>");
+  //delete _dest;
+  return tmp;
+  }*/
+
+HtmlLinks::HtmlLinks() { }
+
+HtmlLinks::~HtmlLinks() { }
+
+bool HtmlLinks::inLink(double xmin, double ymin, double xmax, double ymax, int &p) const
+{
+
+    for (std::vector<HtmlLink>::const_iterator i = accu.begin(); i != accu.end(); ++i) {
+        if (i->inLink(xmin, ymin, xmax, ymax)) {
+            p = (i - accu.begin());
+            return true;
+        }
+    }
+    return false;
+}
+
+const HtmlLink *HtmlLinks::getLink(int i) const
+{
+    return &accu[i];
+}
+
+#pragma mark InMemoryFile.cc
+
+//========================================================================
+//
+// InMemoryFile.cc
+//
+// Represents a file in-memory with GNU's stdio wrappers.
+// NOTE as of this writing, open() depends on the glibc 'fopencookie'
+// extension and is not supported on other platforms. The
+// HAVE_IN_MEMORY_FILE macro is intended to reflect whether this class is
+// usable.
+//
+// This file is licensed under the GPLv2 or later
+//
+// Copyright (C) 2018, 2019 Greg Knight <lyngvi@gmail.com>
+// Copyright (C) 2020 Albert Astals Cid <aacid@kde.org>
+//
+//========================================================================
+
+#include "InMemoryFile.h"
+
+#include <cstring>
+#include <sstream>
+
+InMemoryFile::InMemoryFile() : iohead(0), fptr(nullptr) { }
+
+#ifdef HAVE_IN_MEMORY_FILE_FOPENCOOKIE
+ssize_t InMemoryFile::_read(char *buf, size_t sz)
+{
+    auto toRead = std::min<size_t>(data.size() - iohead, sz);
+    memcpy(&buf[0], &data[iohead], toRead);
+    iohead += toRead;
+    return toRead;
+}
+
+ssize_t InMemoryFile::_write(const char *buf, size_t sz)
+{
+    if (iohead + sz > data.size())
+        data.resize(iohead + sz);
+    memcpy(&data[iohead], buf, sz);
+    iohead += sz;
+    return sz;
+}
+
+int InMemoryFile::_seek(off64_t *offset, int whence)
+{
+    switch (whence) {
+    case SEEK_SET:
+        iohead = (*offset);
+        break;
+    case SEEK_CUR:
+        iohead += (*offset);
+        break;
+    case SEEK_END:
+        iohead -= (*offset);
+        break;
+    }
+    (*offset) = std::min<off64_t>(std::max<off64_t>(iohead, 0l), data.size());
+    iohead = static_cast<size_t>(*offset);
+    return 0;
+}
+#endif // def HAVE_IN_MEMORY_FILE_FOPENCOOKIE
+
+FILE *InMemoryFile::open(const char *mode)
+{
+#ifdef HAVE_IN_MEMORY_FILE_FOPENCOOKIE
+    if (fptr != nullptr) {
+        fprintf(stderr, "InMemoryFile: BUG: Why is this opened more than once?");
+        return nullptr; // maybe there's some legit reason for it, whoever comes up with one can remove this line
+    }
+    static const cookie_io_functions_t methods = {
+        /* .read = */ [](void *self, char *buf, size_t sz) { return ((InMemoryFile *)self)->_read(buf, sz); },
+        /* .write = */ [](void *self, const char *buf, size_t sz) { return ((InMemoryFile *)self)->_write(buf, sz); },
+        /* .seek = */ [](void *self, off64_t *offset, int whence) { return ((InMemoryFile *)self)->_seek(offset, whence); },
+        /* .close = */
+        [](void *self) {
+            ((InMemoryFile *)self)->fptr = nullptr;
+            return 0;
+        },
+    };
+    return fptr = fopencookie(this, mode, methods);
+#else
+    fprintf(stderr, "If you can read this, your platform does not support the features necessary to achieve your goals.");
+    return nullptr;
+#endif
+}

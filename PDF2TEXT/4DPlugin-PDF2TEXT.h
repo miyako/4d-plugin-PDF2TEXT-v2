@@ -30,6 +30,21 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <cstdio>
+#include <memory>
+
+#include "ufopen.h"
+
+#include "HtmlOutputDev.h"
+#include "SplashOutputDev.h"
+#include "splash/SplashBitmap.h"
+#include "DateInfo.h"
+#include "PDFDocEncoding.h"
+#include "PDFDoc.h"
+#include "PDFDocFactory.h"
+#include "Outline.h"
+#include "GlobalParams.h"
+
 typedef PA_long32 method_id_t;
 
 #if defined(_WIN32)
@@ -44,6 +59,6 @@ extern "C" BOOL gobject_DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvR
 
 #pragma mark -
 
-void PDF_Get_text(PA_PluginParameters params);
+static void PDF_Get_XML(PA_PluginParameters params);
 
 #endif /* PLUGIN_PDF2TEXT_H */

@@ -1,5 +1,6 @@
 /* poppler.h: glib interface to poppler
  * Copyright (C) 2004, Red Hat, Inc.
+ * Copyright (C) 2021 André Guerreiro <aguerreiro1985@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,11 +22,14 @@
 
 #include <glib-object.h>
 
+#include "poppler-macros.h"
+
 G_BEGIN_DECLS
 
-GQuark poppler_error_quark (void);
+POPPLER_PUBLIC
+GQuark poppler_error_quark(void);
 
-#define POPPLER_ERROR poppler_error_quark ()
+#define POPPLER_ERROR poppler_error_quark()
 
 /**
  * PopplerError:
@@ -39,20 +43,12 @@ GQuark poppler_error_quark (void);
  */
 typedef enum
 {
-  POPPLER_ERROR_INVALID,
-  POPPLER_ERROR_ENCRYPTED,
-  POPPLER_ERROR_OPEN_FILE,
-  POPPLER_ERROR_BAD_CATALOG,
-  POPPLER_ERROR_DAMAGED
+    POPPLER_ERROR_INVALID,
+    POPPLER_ERROR_ENCRYPTED,
+    POPPLER_ERROR_OPEN_FILE,
+    POPPLER_ERROR_BAD_CATALOG,
+    POPPLER_ERROR_DAMAGED
 } PopplerError;
-
-typedef enum
-{
-  POPPLER_ORIENTATION_PORTRAIT,
-  POPPLER_ORIENTATION_LANDSCAPE,
-  POPPLER_ORIENTATION_UPSIDEDOWN,
-  POPPLER_ORIENTATION_SEASCAPE
-} PopplerOrientation;
 
 /**
  * PopplerPageTransitionType:
@@ -77,18 +73,18 @@ typedef enum
  */
 typedef enum
 {
-  POPPLER_PAGE_TRANSITION_REPLACE,
-  POPPLER_PAGE_TRANSITION_SPLIT,
-  POPPLER_PAGE_TRANSITION_BLINDS,
-  POPPLER_PAGE_TRANSITION_BOX,
-  POPPLER_PAGE_TRANSITION_WIPE,
-  POPPLER_PAGE_TRANSITION_DISSOLVE,
-  POPPLER_PAGE_TRANSITION_GLITTER,
-  POPPLER_PAGE_TRANSITION_FLY,
-  POPPLER_PAGE_TRANSITION_PUSH,
-  POPPLER_PAGE_TRANSITION_COVER,
-  POPPLER_PAGE_TRANSITION_UNCOVER,
-  POPPLER_PAGE_TRANSITION_FADE
+    POPPLER_PAGE_TRANSITION_REPLACE,
+    POPPLER_PAGE_TRANSITION_SPLIT,
+    POPPLER_PAGE_TRANSITION_BLINDS,
+    POPPLER_PAGE_TRANSITION_BOX,
+    POPPLER_PAGE_TRANSITION_WIPE,
+    POPPLER_PAGE_TRANSITION_DISSOLVE,
+    POPPLER_PAGE_TRANSITION_GLITTER,
+    POPPLER_PAGE_TRANSITION_FLY,
+    POPPLER_PAGE_TRANSITION_PUSH,
+    POPPLER_PAGE_TRANSITION_COVER,
+    POPPLER_PAGE_TRANSITION_UNCOVER,
+    POPPLER_PAGE_TRANSITION_FADE
 } PopplerPageTransitionType;
 
 /**
@@ -101,8 +97,8 @@ typedef enum
  */
 typedef enum
 {
-  POPPLER_PAGE_TRANSITION_HORIZONTAL,
-  POPPLER_PAGE_TRANSITION_VERTICAL
+    POPPLER_PAGE_TRANSITION_HORIZONTAL,
+    POPPLER_PAGE_TRANSITION_VERTICAL
 } PopplerPageTransitionAlignment;
 
 /**
@@ -115,8 +111,8 @@ typedef enum
  */
 typedef enum
 {
-  POPPLER_PAGE_TRANSITION_INWARD,
-  POPPLER_PAGE_TRANSITION_OUTWARD
+    POPPLER_PAGE_TRANSITION_INWARD,
+    POPPLER_PAGE_TRANSITION_OUTWARD
 } PopplerPageTransitionDirection;
 
 /**
@@ -129,9 +125,9 @@ typedef enum
  */
 typedef enum
 {
-  POPPLER_SELECTION_GLYPH,
-  POPPLER_SELECTION_WORD,
-  POPPLER_SELECTION_LINE
+    POPPLER_SELECTION_GLYPH,
+    POPPLER_SELECTION_WORD,
+    POPPLER_SELECTION_LINE
 } PopplerSelectionStyle;
 
 /**
@@ -147,10 +143,10 @@ typedef enum
  */
 typedef enum /*< flags >*/
 {
-  POPPLER_PRINT_DOCUMENT          = 0,
-  POPPLER_PRINT_MARKUP_ANNOTS     = 1 << 0,
-  POPPLER_PRINT_STAMP_ANNOTS_ONLY = 1 << 1,
-  POPPLER_PRINT_ALL               = POPPLER_PRINT_MARKUP_ANNOTS
+    POPPLER_PRINT_DOCUMENT = 0,
+    POPPLER_PRINT_MARKUP_ANNOTS = 1 << 0,
+    POPPLER_PRINT_STAMP_ANNOTS_ONLY = 1 << 1,
+    POPPLER_PRINT_ALL = POPPLER_PRINT_MARKUP_ANNOTS
 } PopplerPrintFlags;
 
 /**
@@ -159,6 +155,13 @@ typedef enum /*< flags >*/
  * @POPPLER_FIND_CASE_SENSITIVE: do case sensitive search
  * @POPPLER_FIND_BACKWARDS: search backwards
  * @POPPLER_FIND_WHOLE_WORDS_ONLY: search only whole words
+ * @POPPLER_FIND_IGNORE_DIACRITICS: do diacritics insensitive search,
+ * i.e. ignore accents, umlauts, diaeresis,etc. while matching. This
+ * option will be ignored if the search term is not pure ascii. Since 0.73.
+ * @POPPLER_FIND_MULTILINE: allows to match on text spanning from
+ * end of a line to the next line. (Currently it won't match on text spanning
+ * more than two lines.) Automatically ignores hyphen at end of line, and
+ * allows whitespace in search term to match on newline char. Since: 21.05.0.
  *
  * Flags using while searching text in a page
  *
@@ -166,52 +169,56 @@ typedef enum /*< flags >*/
  */
 typedef enum /*< flags >*/
 {
-  POPPLER_FIND_DEFAULT          = 0,
-  POPPLER_FIND_CASE_SENSITIVE   = 1 << 0,
-  POPPLER_FIND_BACKWARDS        = 1 << 1,
-  POPPLER_FIND_WHOLE_WORDS_ONLY = 1 << 2
+    POPPLER_FIND_DEFAULT = 0,
+    POPPLER_FIND_CASE_SENSITIVE = 1 << 0,
+    POPPLER_FIND_BACKWARDS = 1 << 1,
+    POPPLER_FIND_WHOLE_WORDS_ONLY = 1 << 2,
+    POPPLER_FIND_IGNORE_DIACRITICS = 1 << 3,
+    POPPLER_FIND_MULTILINE = 1 << 4
 } PopplerFindFlags;
 
-typedef struct _PopplerDocument            PopplerDocument;
-typedef struct _PopplerIndexIter           PopplerIndexIter;
-typedef struct _PopplerFontsIter           PopplerFontsIter;
-typedef struct _PopplerLayersIter          PopplerLayersIter;
-typedef struct _PopplerPoint               PopplerPoint;
-typedef struct _PopplerRectangle           PopplerRectangle;
-typedef struct _PopplerTextAttributes      PopplerTextAttributes;
-typedef struct _PopplerColor               PopplerColor;
-typedef struct _PopplerLinkMapping         PopplerLinkMapping;
-typedef struct _PopplerPageTransition      PopplerPageTransition;
-typedef struct _PopplerImageMapping        PopplerImageMapping;
-typedef struct _PopplerFormFieldMapping    PopplerFormFieldMapping;
-typedef struct _PopplerAnnotMapping        PopplerAnnotMapping;
-typedef struct _PopplerPage                PopplerPage;
-typedef struct _PopplerFontInfo            PopplerFontInfo;
-typedef struct _PopplerLayer               PopplerLayer;
-typedef struct _PopplerPSFile              PopplerPSFile;
-typedef union  _PopplerAction              PopplerAction;
-typedef struct _PopplerDest                PopplerDest;
-typedef struct _PopplerActionLayer         PopplerActionLayer;
-typedef struct _PopplerFormField           PopplerFormField;
-typedef struct _PopplerAttachment          PopplerAttachment;
-typedef struct _PopplerMovie               PopplerMovie;
-typedef struct _PopplerMedia               PopplerMedia;
-typedef struct _PopplerAnnot               PopplerAnnot;
-typedef struct _PopplerAnnotMarkup         PopplerAnnotMarkup;
-typedef struct _PopplerAnnotText           PopplerAnnotText;
-typedef struct _PopplerAnnotTextMarkup     PopplerAnnotTextMarkup;
-typedef struct _PopplerAnnotFreeText       PopplerAnnotFreeText;
+typedef struct _PopplerDocument PopplerDocument;
+typedef struct _PopplerIndexIter PopplerIndexIter;
+typedef struct _PopplerFontsIter PopplerFontsIter;
+typedef struct _PopplerLayersIter PopplerLayersIter;
+typedef struct _PopplerPoint PopplerPoint;
+typedef struct _PopplerRectangle PopplerRectangle;
+typedef struct _PopplerTextAttributes PopplerTextAttributes;
+typedef struct _PopplerColor PopplerColor;
+typedef struct _PopplerLinkMapping PopplerLinkMapping;
+typedef struct _PopplerPageTransition PopplerPageTransition;
+typedef struct _PopplerImageMapping PopplerImageMapping;
+typedef struct _PopplerFormFieldMapping PopplerFormFieldMapping;
+typedef struct _PopplerAnnotMapping PopplerAnnotMapping;
+typedef struct _PopplerPage PopplerPage;
+typedef struct _PopplerFontInfo PopplerFontInfo;
+typedef struct _PopplerLayer PopplerLayer;
+typedef struct _PopplerPSFile PopplerPSFile;
+typedef union _PopplerAction PopplerAction;
+typedef struct _PopplerDest PopplerDest;
+typedef struct _PopplerActionLayer PopplerActionLayer;
+typedef struct _PopplerFormField PopplerFormField;
+typedef struct _PopplerAttachment PopplerAttachment;
+typedef struct _PopplerMovie PopplerMovie;
+typedef struct _PopplerMedia PopplerMedia;
+typedef struct _PopplerAnnot PopplerAnnot;
+typedef struct _PopplerAnnotMarkup PopplerAnnotMarkup;
+typedef struct _PopplerAnnotText PopplerAnnotText;
+typedef struct _PopplerAnnotTextMarkup PopplerAnnotTextMarkup;
+typedef struct _PopplerAnnotFreeText PopplerAnnotFreeText;
 typedef struct _PopplerAnnotFileAttachment PopplerAnnotFileAttachment;
-typedef struct _PopplerAnnotMovie          PopplerAnnotMovie;
-typedef struct _PopplerAnnotScreen         PopplerAnnotScreen;
-typedef struct _PopplerAnnotCalloutLine    PopplerAnnotCalloutLine;
-typedef struct _PopplerAnnotLine           PopplerAnnotLine;
-typedef struct _PopplerAnnotCircle         PopplerAnnotCircle;
-typedef struct _PopplerAnnotSquare         PopplerAnnotSquare;
-typedef struct _PopplerQuadrilateral       PopplerQuadrilateral;
-typedef struct _PopplerStructureElement    PopplerStructureElement;
+typedef struct _PopplerAnnotMovie PopplerAnnotMovie;
+typedef struct _PopplerAnnotScreen PopplerAnnotScreen;
+typedef struct _PopplerAnnotCalloutLine PopplerAnnotCalloutLine;
+typedef struct _PopplerAnnotLine PopplerAnnotLine;
+typedef struct _PopplerAnnotCircle PopplerAnnotCircle;
+typedef struct _PopplerAnnotSquare PopplerAnnotSquare;
+typedef struct _PopplerQuadrilateral PopplerQuadrilateral;
+typedef struct _PopplerStructureElement PopplerStructureElement;
 typedef struct _PopplerStructureElementIter PopplerStructureElementIter;
-typedef struct _PopplerTextSpan            PopplerTextSpan;
+typedef struct _PopplerTextSpan PopplerTextSpan;
+typedef struct _PopplerPageRange PopplerPageRange;
+typedef struct _PopplerSignatureInfo PopplerSignatureInfo;
 
 /**
  * PopplerBackend:
@@ -223,13 +230,15 @@ typedef struct _PopplerTextSpan            PopplerTextSpan;
  */
 typedef enum
 {
-  POPPLER_BACKEND_UNKNOWN,
-  POPPLER_BACKEND_SPLASH,
-  POPPLER_BACKEND_CAIRO
+    POPPLER_BACKEND_UNKNOWN,
+    POPPLER_BACKEND_SPLASH,
+    POPPLER_BACKEND_CAIRO
 } PopplerBackend;
 
-PopplerBackend poppler_get_backend (void);
-const char *   poppler_get_version (void);
+POPPLER_PUBLIC
+PopplerBackend poppler_get_backend(void);
+POPPLER_PUBLIC
+const char *poppler_get_version(void);
 
 G_END_DECLS
 

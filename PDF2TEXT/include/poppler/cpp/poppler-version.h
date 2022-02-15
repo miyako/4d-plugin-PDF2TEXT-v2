@@ -21,9 +21,9 @@
 
 #include "poppler-global.h"
 
-#define POPPLER_VERSION "0.29.0"
-#define POPPLER_VERSION_MAJOR 0
-#define POPPLER_VERSION_MINOR 29
+#define POPPLER_VERSION "21.12.0"
+#define POPPLER_VERSION_MAJOR 21
+#define POPPLER_VERSION_MINOR 12
 #define POPPLER_VERSION_MICRO 0
 
 namespace poppler
