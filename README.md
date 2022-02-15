@@ -22,3 +22,16 @@ text:=PDF Get text(pdf;options)
 |options.method|Text|コールバックメソッド|
 |options.version|Number|コールバックメソッドの仕様|
 |text|Collection||
+
+### コールバックメソッドv1
+
+```4d
+#DECLARE(count:Integer;total:Integer;idx:Integer;text:Text)->abort:Boolean
+```
+
+### コールバックメソッドv2
+
+```4d
+#DECLARE(Object)->abort:Boolean
+```
+
