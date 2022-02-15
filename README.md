@@ -6,10 +6,10 @@
 # 4d-plugin-PDF2TEXT-v2
 PDF text extractor based on [poppler](https://poppler.freedesktop.org).
 
-## PDF to XML
+## PDF Get text
 
 ```4d
-xml:=PDF Get text(pdf;options)
+text:=PDF Get text(pdf;options)
 ```
 
 |パラメーター|データ型|説明|
