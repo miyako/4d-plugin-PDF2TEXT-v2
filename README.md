@@ -22,8 +22,7 @@ xml:=PDF to XML(pdf;options)
 |options.lastPage|Number|`-l` このページまで (`0`)|
 |options.ownerPassword|Text|`-opw` オーナーパスワード|
 |options.userPassword|Text|`-upw` ユーザーパスワード|
-|options.imageFormat|Text|`-fmt` 画像形式 (`.png`) `.jpg` XMLモードでは無効|
-|options.scale|Number|`-zoom` 座標係数 (`.1.5`)|
+|options.scale|Number|`-zoom` 座標係数 (`.1.0`)|
 |options.noRoundedCoordinates|Boolean|`-noroundcoord` 座標を丸めない (`true`)|
 |options.wordBreakThreshold|Number|`-wbt` (`10`)|
 |xml|BLOB|エンコーディングは固定値 (`UTF-8`)|
@@ -48,7 +47,8 @@ xml:=PDF to XML(pdf;options)
 * `-nodrm`
 * `-fontfullname`
 * `-dataurls`
-
+* `-fmt`
+ 
 ### 論考
 
 Popplerはレンダリングエンジンであるので，テキストは論理的なブロックではなく，絶対値で返される。
