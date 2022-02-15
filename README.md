@@ -6,6 +6,8 @@
 # 4d-plugin-PDF2TEXT-v2
 PDF text extractor based on [poppler](https://poppler.freedesktop.org).
 
+XML version in [pdftoxml](https://github.com/miyako/4d-plugin-PDF2TEXT-v2/tree/pdftoxml) branch
+
 ## PDF Get text
 
 ```4d
