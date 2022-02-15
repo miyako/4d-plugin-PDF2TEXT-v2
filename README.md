@@ -5,6 +5,14 @@ PDF text extractor based on [poppler](https://poppler.freedesktop.org).
 
 based on poppler/utils/pdftohtml.cc
 
+
+using `PDFDocFactory` API.
+
+### build notes on macOS
+
+* `CLANG_CXX_LANGUAGE_STANDARD` = `c++14`
+* `CLANG_CXX_LIBRARY` = `libc++`
+
 ## PDF to XML
 
 ```4d
