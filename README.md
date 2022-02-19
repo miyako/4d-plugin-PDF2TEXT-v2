@@ -3,6 +3,10 @@ PDF text extractor based on [poppler](https://poppler.freedesktop.org).
 
 based on poppler/utils/pdftohtml.cc `PDFDocFactory` API.
 
+### build notes on Windows
+
+* Use Visual Studio 2017 or later
+
 ### build notes on macOS
 
 * `CLANG_CXX_LANGUAGE_STANDARD` = `c++14`
