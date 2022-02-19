@@ -112,7 +112,7 @@ class HtmlPage
 {
 public:
     // Constructor.
-    explicit HtmlPage(bool rawOrder, double wordBreakThreshold, bool noRoundedCoordinates, double lineBreakThreshold, bool rawLineBreak);
+    explicit HtmlPage(bool rawOrder, double wordBreakThreshold, bool noRoundedCoordinates, double lineBreakThreshold, bool rawLineBreak, bool ignoreHorizontalAlign);
 
     // Destructor.
     ~HtmlPage();
@@ -159,12 +159,13 @@ public:
 private:
     const HtmlFont *getFont(HtmlString *hStr) const { return fonts->Get(hStr->fontpos); }
 
+    bool noRoundedCoordinates;
+    double wordBreakThreshold;
     double fontSize; // current font size
     bool rawOrder; // keep strings in content stream order
-    double wordBreakThreshold;
-    bool noRoundedCoordinates;
     double lineBreakThreshold;
     bool rawLineBreak;
+    bool ignoreHorizontalAlign;
     
     HtmlString *curStr; // currently active string
 
@@ -223,7 +224,7 @@ public:
     // 8-bit ISO Latin-1.  <useASCII7> should also be set for Japanese
     // (EUC-JP) text.  If <rawOrder> is true, the text is kept in content
     // stream order.
-    HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrder, int firstPage = 1, bool outline = false, double wordBreakThresholdA = 1, bool noRoundedCoordinatesA = true, double lineBreakThresholdA = 0.7, bool rawLineBreakA = false);
+    HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrder, int firstPage = 1, bool outline = false, double wordBreakThresholdA = 1, bool noRoundedCoordinatesA = true, double lineBreakThresholdA = 0.7, bool rawLineBreakA = false, bool ignoreHorizontalAlignA = false);
 
     // Destructor.
     ~HtmlOutputDev() override;
@@ -320,6 +321,7 @@ private:
     Page *docPage;
     double lineBreakThreshold;
     bool rawLineBreak;
+    bool ignoreHorizontalAlign;
     std::vector<std::string> backgroundImages;
     friend class HtmlPage;
 };
