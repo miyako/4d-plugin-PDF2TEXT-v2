@@ -147,7 +147,8 @@ static void PDF_Get_XML(PA_PluginParameters params) {
     
     double wordBreakThreshold = 1;
     bool noRoundedCoordinates = true;
-    
+	bool ignoreHorizontalAlign = false;
+
     std::string ownerPassword;
     std::string userPassword;
     
@@ -246,7 +247,11 @@ static void PDF_Get_XML(PA_PluginParameters params) {
             if(ob_is_defined(options, L"rawLineBreak")) {
                 rawLineBreak = ob_get_b(options, L"rawLineBreak");
             }
-            
+
+			if (ob_is_defined(options, L"ignoreHorizontalAlign")) {
+				ignoreHorizontalAlign = ob_get_b(options, L"ignoreHorizontalAlign");
+			}
+
             if(ob_is_defined(options, L"lineBreakThreshold")) {
                 lineBreakThreshold = ob_get_n(options, L"lineBreakThreshold");
             }
@@ -346,7 +351,7 @@ static void PDF_Get_XML(PA_PluginParameters params) {
                                         date ? date->c_str() : nullptr,
                                         rawOrder, firstPage, doOutline,
                                         wordBreakThreshold, noRoundedCoordinates,
-                                        lineBreakThreshold, rawLineBreak);
+                                        lineBreakThreshold, rawLineBreak, ignoreHorizontalAlign);
             delete docTitle;
             if (author) {
                 delete author;
@@ -709,11 +714,15 @@ void HtmlString::endString()
 // HtmlPage
 //------------------------------------------------------------------------
 
-HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA)
+HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA)
 {
     noRoundedCoordinates = noRoundedCoordinatesA;
     wordBreakThreshold = wordBreakThresholdA;
+	lineBreakThreshold = lineBreakThresholdA;
+	rawLineBreak = rawLineBreakA;
     rawOrder = rawOrderA;
+	ignoreHorizontalAlign = ignoreHorizontalAlignA;
+
     curStr = nullptr;
     yxStrings = nullptr;
     xyStrings = nullptr;
@@ -1009,7 +1018,7 @@ void HtmlPage::coalesce()
         
         // if strings line up on left-hand side AND they are on subsequent lines, we need a line break
 
-        bool line_up_on_left_hand_side = (fabs(str1->xMin - str2->xMin) < 0.4);
+        bool line_up_on_left_hand_side = (fabs(str1->xMin - str2->xMin) < 0.4) || ignoreHorizontalAlign;
         bool on_subsequent_lines = IS_CLOSER(str2->yMax, str1->yMax + space, str1->yMax);
     
         addLineBreak = !noMerge && line_up_on_left_hand_side && on_subsequent_lines;
@@ -1068,9 +1077,9 @@ void HtmlPage::coalesce()
             if (addLineBreak) {
                 str1->text[str1->len] = '\n';
                 if(rawLineBreak) {
-                    str1->htext->append("<br/>");
+					str1->htext->append("\n");
                 }else{
-                    str1->htext->append("\n");
+					str1->htext->append("<br/>");
                 }
                 
                 str1->xRight[str1->len] = str2->xMin;
@@ -1589,7 +1598,7 @@ void HtmlOutputDev::doFrame(int firstPage)
     fclose(fContentsFrame);
 }
 
-HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrderA, int firstPage, bool outline, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA)
+HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrderA, int firstPage, bool outline, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA)
 {
     bool complexMode = true;
     bool xml = true;
@@ -1598,22 +1607,24 @@ HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char
     bool singleHtml = false;
     
     rawLineBreak = rawLineBreakA;
-    catalog = catalogA;
     lineBreakThreshold = lineBreakThresholdA;
+
+	catalog = catalogA;
+	rawOrder = rawOrderA;
+
     fContentsFrame = nullptr;
     page = nullptr;
     docTitle = new GooString(title);
     pages = nullptr;
     dumpJPEG = true;
     // write = true;
-    rawOrder = rawOrderA;
     this->doOutline = outline;
     ok = false;
     // this->firstPage = firstPage;
     // pageNum=firstPage;
     // open file
     needClose = false;
-    pages = new HtmlPage(rawOrder, wordBreakThresholdA, noRoundedCoordinatesA, lineBreakThresholdA, rawLineBreakA);
+    pages = new HtmlPage(rawOrder, wordBreakThresholdA, noRoundedCoordinatesA, lineBreakThresholdA, rawLineBreakA, ignoreHorizontalAlignA);
 
 #if VERSIONMAC
     glMetaVars.push_back(new HtmlMetaVar("generator", "pdftohtml 0.36"));
