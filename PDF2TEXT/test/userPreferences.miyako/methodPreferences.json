@@ -99,13 +99,13 @@
 		"stamp": "2019-07-02T23:15:40.975Z"
 	},
 	"Sources/Methods/TEST.4dm": {
-		"startSelection": 0,
-		"endSelection": 0,
-		"firstSelectedLine": 6,
-		"lastSelectedLine": 6,
+		"startSelection": 15,
+		"endSelection": 15,
+		"firstSelectedLine": 19,
+		"lastSelectedLine": 19,
 		"folding": [],
 		"bookmarks": [],
-		"stamp": "2022-02-15T14:26:51.000Z"
+		"stamp": "2022-02-19T03:21:51.244Z"
 	},
 	"Sources/Methods/TEST_v17.4dm": {
 		"startSelection": 0,

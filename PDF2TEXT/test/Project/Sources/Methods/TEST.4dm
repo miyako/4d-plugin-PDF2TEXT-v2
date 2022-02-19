@@ -3,6 +3,8 @@ $file:=Folder:C1567(fk desktop folder:K87:19).file("佐賀.pdf")
 
 $options:=New object:C1471
 $options.noRoundedCoordinates:=False:C215
+$options.rawLineBreak:=True:C214
+
 
 var $XML; $PDF : Blob
 

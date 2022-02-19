@@ -160,7 +160,7 @@ static void PDF_Get_XML(PA_PluginParameters params) {
 //    bool complexMode = true;
 //    bool showHidden = true;
 //    bool noframes = true;
-//    bool noMerge = true;
+//    bool noMerge = false;
 //    bool dataUrls = false;
 //    bool printHelp = false;
 //    bool printHtml = false;
@@ -176,6 +176,10 @@ static void PDF_Get_XML(PA_PluginParameters params) {
     globalParams->setErrQuiet(false);
     globalParams->setTextEncoding("UTF-8");
 
+    bool rawLineBreak = false;
+    double lineBreakThreshold = 0.7;
+    
+    
 #if VERSIONMAC
     std::unique_ptr<PDFDoc> doc;
 #else
@@ -237,6 +241,14 @@ static void PDF_Get_XML(PA_PluginParameters params) {
                    ||(stringValue == (const uint8_t *)".jpeg")) {
                        format = splashFormatJpeg;
                    }
+            }
+            
+            if(ob_is_defined(options, L"rawLineBreak")) {
+                rawLineBreak = ob_get_b(options, L"rawLineBreak");
+            }
+            
+            if(ob_is_defined(options, L"lineBreakThreshold")) {
+                lineBreakThreshold = ob_get_n(options, L"lineBreakThreshold");
             }
             
         }
@@ -333,7 +345,8 @@ static void PDF_Get_XML(PA_PluginParameters params) {
                                         subject ? subject->c_str() : nullptr,
                                         date ? date->c_str() : nullptr,
                                         rawOrder, firstPage, doOutline,
-                                        wordBreakThreshold, noRoundedCoordinates);
+                                        wordBreakThreshold, noRoundedCoordinates,
+                                        lineBreakThreshold, rawLineBreak);
             delete docTitle;
             if (author) {
                 delete author;
@@ -696,7 +709,7 @@ void HtmlString::endString()
 // HtmlPage
 //------------------------------------------------------------------------
 
-HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoordinatesA)
+HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA)
 {
     noRoundedCoordinates = noRoundedCoordinatesA;
     wordBreakThreshold = wordBreakThresholdA;
@@ -921,7 +934,7 @@ static void CloseTags(GooString *htext, bool &finish_a, bool &finish_italic, boo
 void HtmlPage::coalesce()
 {
     bool complexMode = true;
-    bool noMerge = true;
+    bool noMerge = false;
     bool xml = true;
     
     HtmlString *str1, *str2;
@@ -992,10 +1005,15 @@ void HtmlPage::coalesce()
         const HtmlFont *hfont2 = getFont(str2);
         space = str1->yMax - str1->yMin; // the height of the font's bounding box
         horSpace = str2->xMin - str1->xMax;
-        // if strings line up on left-hand side AND they are on subsequent lines, we need a line break
-        addLineBreak = !noMerge && (fabs(str1->xMin - str2->xMin) < 0.4) && IS_CLOSER(str2->yMax, str1->yMax + space, str1->yMax);
         vertSpace = str2->yMin - str1->yMax;
+        
+        // if strings line up on left-hand side AND they are on subsequent lines, we need a line break
 
+        bool line_up_on_left_hand_side = (fabs(str1->xMin - str2->xMin) < 0.4);
+        bool on_subsequent_lines = IS_CLOSER(str2->yMax, str1->yMax + space, str1->yMax);
+    
+        addLineBreak = !noMerge && line_up_on_left_hand_side && on_subsequent_lines;
+    
         // printf("coalesce %d %d %f? ", str1->dir, str2->dir, d);
 
         if (str2->yMin >= str1->yMin && str2->yMin <= str1->yMax) {
@@ -1005,7 +1023,14 @@ void HtmlPage::coalesce()
         } else {
             vertOverlap = 0;
         }
-
+                
+        bool same_text_direction = (str1->dir == str2->dir);
+        bool same_font_or_not_complex_mode = (!complexMode || (hfont1->isEqualIgnoreBold(*hfont2)));
+        // in complex mode fonts must be the same, in other modes fonts do not metter
+        bool same_paragraph = (vertSpace >= 0 && vertSpace < (lineBreakThreshold * space) && addLineBreak);
+        bool single_horizontal_space_or_less = (horSpace > -0.5 * space && horSpace < space);
+        bool at_least_50_percent_vertical_overlap = (rawOrder && vertOverlap > 0.5 * space);
+        
         // Combine strings if:
         //  They appear to be the same font (complex mode only) && going in the same direction AND at least one of the following:
         //  1.  They appear to be part of the same line of text
@@ -1015,9 +1040,12 @@ void HtmlPage::coalesce()
         //       horizontal space between end of str1 and start of str2 is consistent with a single space or less;
         //       when rawOrder, the strings have to overlap vertically by at least 50%
         //  (2)  Strings flow down the page, but the space between them is not too great, and they are lined up on the left
-        if (((((rawOrder && vertOverlap > 0.5 * space) || (!rawOrder && str2->yMin < str1->yMax)) && (horSpace > -0.5 * space && horSpace < space)) || (vertSpace >= 0 && vertSpace < 0.5 * space && addLineBreak))
-            && (!complexMode || (hfont1->isEqualIgnoreBold(*hfont2))) && // in complex mode fonts must be the same, in other modes fonts do not metter
-            str1->dir == str2->dir // text direction the same
+        if ((((at_least_50_percent_vertical_overlap
+               || (!rawOrder && str2->yMin < str1->yMax))
+              && single_horizontal_space_or_less)
+             || same_paragraph)
+            && same_font_or_not_complex_mode
+            && same_text_direction
         ) {
             //      printf("yes\n");
             n = str1->len + str2->len;
@@ -1039,7 +1067,12 @@ void HtmlPage::coalesce()
             }
             if (addLineBreak) {
                 str1->text[str1->len] = '\n';
-                str1->htext->append("<br/>");
+                if(rawLineBreak) {
+                    str1->htext->append("<br/>");
+                }else{
+                    str1->htext->append("\n");
+                }
+                
                 str1->xRight[str1->len] = str2->xMin;
                 ++str1->len;
                 str1->yMin = str2->yMin;
@@ -1556,7 +1589,7 @@ void HtmlOutputDev::doFrame(int firstPage)
     fclose(fContentsFrame);
 }
 
-HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrderA, int firstPage, bool outline, double wordBreakThresholdA, bool noRoundedCoordinatesA)
+HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrderA, int firstPage, bool outline, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA)
 {
     bool complexMode = true;
     bool xml = true;
@@ -1564,7 +1597,9 @@ HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char
     bool noframes = true;
     bool singleHtml = false;
     
+    rawLineBreak = rawLineBreakA;
     catalog = catalogA;
+    lineBreakThreshold = lineBreakThresholdA;
     fContentsFrame = nullptr;
     page = nullptr;
     docTitle = new GooString(title);
@@ -1578,7 +1613,7 @@ HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char
     // pageNum=firstPage;
     // open file
     needClose = false;
-    pages = new HtmlPage(rawOrder, wordBreakThresholdA, noRoundedCoordinatesA);
+    pages = new HtmlPage(rawOrder, wordBreakThresholdA, noRoundedCoordinatesA, lineBreakThresholdA, rawLineBreakA);
 
 #if VERSIONMAC
     glMetaVars.push_back(new HtmlMetaVar("generator", "pdftohtml 0.36"));
@@ -1792,8 +1827,8 @@ void HtmlOutputDev::endPage()
     maxPageHeight = pages->pageHeight;
 
     // if(!noframes&&!xml) fputs("<br/>\n", fContentsFrame);
-    if (!stout && !globalParams->getErrQuiet())
-        printf("Page-%d\n", (pageNum));
+//    if (!stout && !globalParams->getErrQuiet())
+//        printf("Page-%d\n", (pageNum));
 }
 
 void HtmlOutputDev::addBackgroundImage(const std::string &img)
