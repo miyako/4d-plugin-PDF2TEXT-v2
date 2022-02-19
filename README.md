@@ -35,7 +35,6 @@ xml:=PDF to XML(pdf;options)
 * `-c`
 * `-hidden`
 * `-noframes`
-* `-noMerge`
 
 #### 常に無効なオプション
 
@@ -48,7 +47,8 @@ xml:=PDF to XML(pdf;options)
 * `-fontfullname`
 * `-dataurls`
 * `-fmt`
- 
+* `-noMerge`
+  
 ### 論考
 
 Popplerはレンダリングエンジンであるので，テキストは論理的なブロックではなく，絶対値で返される。
