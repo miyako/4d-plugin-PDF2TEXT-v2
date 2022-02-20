@@ -96,10 +96,10 @@
 		"height": 762
 	},
 	"Sources/Methods/TEST.4dm": {
-		"left": 188,
-		"top": 236,
-		"width": 965,
-		"height": 659
+		"left": 455,
+		"top": 235,
+		"width": 1262,
+		"height": 701
 	},
 	"Sources/Methods/TEST_v17.4dm": {
 		"left": 450,
@@ -160,5 +160,41 @@
 		"top": 301,
 		"width": 691,
 		"height": 654
+	},
+	"Sources/Methods/parse_pdf.4dm": {
+		"left": 382,
+		"top": 506,
+		"width": 1262,
+		"height": 729
+	},
+	"Sources/Methods/reduce_pdf.4dm": {
+		"left": 382,
+		"top": 534,
+		"width": 1262,
+		"height": 701
+	},
+	"Sources/Forms/TEST/method.4dm": {
+		"left": 459,
+		"top": 396,
+		"width": 895,
+		"height": 738
+	},
+	"Sources/Methods/format_佐賀.4dm": {
+		"left": 459,
+		"top": 396,
+		"width": 895,
+		"height": 738
+	},
+	"Sources/Forms/TEST/ObjectMethods/PDFs.4dm": {
+		"left": 311,
+		"top": 489,
+		"width": 1262,
+		"height": 701
+	},
+	"Sources/Methods/process_pdf.4dm": {
+		"left": 459,
+		"top": 396,
+		"width": 895,
+		"height": 738
 	}
 }

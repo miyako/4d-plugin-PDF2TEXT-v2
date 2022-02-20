@@ -148,6 +148,7 @@ static void PDF_Get_XML(PA_PluginParameters params) {
     double wordBreakThreshold = 1;
     bool noRoundedCoordinates = true;
 	bool ignoreHorizontalAlign = false;
+    bool ignoreFont = false;
 
     std::string ownerPassword;
     std::string userPassword;
@@ -251,7 +252,11 @@ static void PDF_Get_XML(PA_PluginParameters params) {
 			if (ob_is_defined(options, L"ignoreHorizontalAlign")) {
 				ignoreHorizontalAlign = ob_get_b(options, L"ignoreHorizontalAlign");
 			}
-
+            
+            if (ob_is_defined(options, L"ignoreFont")) {
+                ignoreFont = ob_get_b(options, L"ignoreFont");
+            }
+            
             if(ob_is_defined(options, L"lineBreakThreshold")) {
                 lineBreakThreshold = ob_get_n(options, L"lineBreakThreshold");
             }
@@ -351,7 +356,7 @@ static void PDF_Get_XML(PA_PluginParameters params) {
                                         date ? date->c_str() : nullptr,
                                         rawOrder, firstPage, doOutline,
                                         wordBreakThreshold, noRoundedCoordinates,
-                                        lineBreakThreshold, rawLineBreak, ignoreHorizontalAlign);
+                                        lineBreakThreshold, rawLineBreak, ignoreHorizontalAlign, ignoreFont);
             delete docTitle;
             if (author) {
                 delete author;
@@ -714,7 +719,7 @@ void HtmlString::endString()
 // HtmlPage
 //------------------------------------------------------------------------
 
-HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA)
+HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA, bool ignoreFontA)
 {
     noRoundedCoordinates = noRoundedCoordinatesA;
     wordBreakThreshold = wordBreakThresholdA;
@@ -722,7 +727,8 @@ HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoo
 	rawLineBreak = rawLineBreakA;
     rawOrder = rawOrderA;
 	ignoreHorizontalAlign = ignoreHorizontalAlignA;
-
+    ignoreFont = ignoreFontA;
+    
     curStr = nullptr;
     yxStrings = nullptr;
     xyStrings = nullptr;
@@ -1035,10 +1041,13 @@ void HtmlPage::coalesce()
                 
         bool same_text_direction = (str1->dir == str2->dir);
         bool same_font_or_not_complex_mode = (!complexMode || (hfont1->isEqualIgnoreBold(*hfont2)));
+
         // in complex mode fonts must be the same, in other modes fonts do not metter
         bool same_paragraph = (vertSpace >= 0 && vertSpace < (lineBreakThreshold * space) && addLineBreak);
         bool single_horizontal_space_or_less = (horSpace > -0.5 * space && horSpace < space);
         bool at_least_50_percent_vertical_overlap = (rawOrder && vertOverlap > 0.5 * space);
+        bool left_to_right = (!rawOrder && str2->yMin < str1->yMax);
+        if (ignoreFont && same_paragraph) same_font_or_not_complex_mode = true;
         
         // Combine strings if:
         //  They appear to be the same font (complex mode only) && going in the same direction AND at least one of the following:
@@ -1050,7 +1059,7 @@ void HtmlPage::coalesce()
         //       when rawOrder, the strings have to overlap vertically by at least 50%
         //  (2)  Strings flow down the page, but the space between them is not too great, and they are lined up on the left
         if ((((at_least_50_percent_vertical_overlap
-               || (!rawOrder && str2->yMin < str1->yMax))
+               || left_to_right)
               && single_horizontal_space_or_less)
              || same_paragraph)
             && same_font_or_not_complex_mode
@@ -1598,7 +1607,7 @@ void HtmlOutputDev::doFrame(int firstPage)
     fclose(fContentsFrame);
 }
 
-HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrderA, int firstPage, bool outline, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA)
+HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrderA, int firstPage, bool outline, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA, bool ignoreFontA)
 {
     bool complexMode = true;
     bool xml = true;
@@ -1624,7 +1633,7 @@ HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char
     // pageNum=firstPage;
     // open file
     needClose = false;
-    pages = new HtmlPage(rawOrder, wordBreakThresholdA, noRoundedCoordinatesA, lineBreakThresholdA, rawLineBreakA, ignoreHorizontalAlignA);
+    pages = new HtmlPage(rawOrder, wordBreakThresholdA, noRoundedCoordinatesA, lineBreakThresholdA, rawLineBreakA, ignoreHorizontalAlignA, ignoreFontA);
 
 #if VERSIONMAC
     glMetaVars.push_back(new HtmlMetaVar("generator", "pdftohtml 0.36"));
@@ -1811,7 +1820,7 @@ void HtmlOutputDev::startPage(int pageNumA, GfxState *state, XRef *xref)
 
 void HtmlOutputDev::endPage()
 {
-    bool stout = false;
+//    bool stout = false;
     
 #if VERSIONMAC
 	std::unique_ptr<Links> linksList = docPage->getLinks();

@@ -99,13 +99,13 @@
 		"stamp": "2019-07-02T23:15:40.975Z"
 	},
 	"Sources/Methods/TEST.4dm": {
-		"startSelection": 0,
-		"endSelection": 0,
-		"firstSelectedLine": 6,
-		"lastSelectedLine": 6,
+		"startSelection": 47,
+		"endSelection": 47,
+		"firstSelectedLine": 0,
+		"lastSelectedLine": 0,
 		"folding": [],
 		"bookmarks": [],
-		"stamp": "2022-02-19T04:15:16.917Z"
+		"stamp": "2022-02-20T22:35:26.286Z"
 	},
 	"Sources/Methods/TEST_v17.4dm": {
 		"startSelection": 0,
@@ -115,5 +115,59 @@
 		"folding": [],
 		"bookmarks": [],
 		"stamp": "2019-07-07T00:13:49.000Z"
+	},
+	"Sources/Methods/parse_pdf.4dm": {
+		"startSelection": 25,
+		"endSelection": 25,
+		"firstSelectedLine": 9,
+		"lastSelectedLine": 9,
+		"folding": [],
+		"bookmarks": [],
+		"stamp": "2022-02-20T23:01:54.298Z"
+	},
+	"Sources/Methods/reduce_pdf.4dm": {
+		"startSelection": 0,
+		"endSelection": 0,
+		"firstSelectedLine": 41,
+		"lastSelectedLine": 41,
+		"folding": [],
+		"bookmarks": [],
+		"stamp": "2022-02-20T22:45:58.363Z"
+	},
+	"Sources/Forms/TEST/method.4dm": {
+		"startSelection": 74,
+		"endSelection": 74,
+		"firstSelectedLine": 15,
+		"lastSelectedLine": 15,
+		"folding": [],
+		"bookmarks": [],
+		"stamp": "2022-02-20T22:34:52.234Z"
+	},
+	"Sources/Methods/format_佐賀.4dm": {
+		"startSelection": 66,
+		"endSelection": 66,
+		"firstSelectedLine": 19,
+		"lastSelectedLine": 19,
+		"folding": [],
+		"bookmarks": [],
+		"stamp": "2022-02-20T22:29:17.229Z"
+	},
+	"Sources/Forms/TEST/ObjectMethods/PDFs.4dm": {
+		"startSelection": 63,
+		"endSelection": 63,
+		"firstSelectedLine": 5,
+		"lastSelectedLine": 5,
+		"folding": [],
+		"bookmarks": [],
+		"stamp": "2022-02-20T22:38:34.237Z"
+	},
+	"Sources/Methods/process_pdf.4dm": {
+		"startSelection": 29,
+		"endSelection": 29,
+		"firstSelectedLine": 9,
+		"lastSelectedLine": 9,
+		"folding": [],
+		"bookmarks": [],
+		"stamp": "2022-02-20T22:33:53.713Z"
 	}
 }

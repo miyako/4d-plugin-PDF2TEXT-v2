@@ -1,0 +1,201 @@
+{
+	"$4d": {
+		"version": "1",
+		"kind": "form"
+	},
+	"windowSizingX": "variable",
+	"windowSizingY": "variable",
+	"windowMinWidth": 0,
+	"windowMinHeight": 0,
+	"windowMaxWidth": 32767,
+	"windowMaxHeight": 32767,
+	"rightMargin": 20,
+	"bottomMargin": 20,
+	"events": [
+		"onLoad",
+		"onUnload"
+	],
+	"windowTitle": "TEST",
+	"destination": "detailScreen",
+	"pages": [
+		{
+			"objects": {}
+		},
+		{
+			"objects": {
+				"PDF": {
+					"type": "listbox",
+					"left": 20,
+					"top": 80,
+					"width": 980,
+					"height": 477,
+					"events": [],
+					"listboxType": "collection",
+					"horizontalLineStroke": "transparent",
+					"verticalLineStroke": "transparent",
+					"resizingMode": "legacy",
+					"sizingX": "grow",
+					"sizingY": "grow",
+					"dataSource": "Form:C1466.data.col",
+					"currentItemSource": "Form:C1466.data.item",
+					"currentItemPositionSource": "Form:C1466.data.pos",
+					"selectedItemsSource": "Form:C1466.data.sel",
+					"rowHeight": "3em",
+					"columns": [
+						{
+							"header": {
+								"text": "事業所名",
+								"name": "Header1"
+							},
+							"name": "Column1",
+							"footer": {
+								"name": "Footer1"
+							},
+							"enterable": false,
+							"dataSource": "This:C1470.事業所名",
+							"truncateMode": "none"
+						},
+						{
+							"header": {
+								"name": "Header2",
+								"text": "所在地"
+							},
+							"name": "Column2",
+							"dataSource": "This:C1470.所在地",
+							"enterable": false,
+							"footer": {
+								"name": "Footer2"
+							},
+							"truncateMode": "none"
+						},
+						{
+							"header": {
+								"name": "Header3",
+								"text": "電話番号"
+							},
+							"name": "Column3",
+							"enterable": false,
+							"dataSource": "This:C1470.電話番号",
+							"footer": {
+								"name": "Footer3"
+							},
+							"truncateMode": "none"
+						},
+						{
+							"header": {
+								"name": "Header4",
+								"text": "PCR検査"
+							},
+							"name": "Column4",
+							"enterable": false,
+							"dataSource": "This:C1470.PCR検査",
+							"resizable": false,
+							"width": 75,
+							"footer": {
+								"name": "Footer4"
+							},
+							"truncateMode": "none",
+							"textAlign": "center"
+						},
+						{
+							"header": {
+								"name": "Header5",
+								"text": "抗原定性検査"
+							},
+							"name": "Column5",
+							"enterable": false,
+							"dataSource": "This:C1470.抗原定性検査",
+							"resizable": false,
+							"width": 75,
+							"footer": {
+								"name": "Footer5"
+							},
+							"truncateMode": "none",
+							"textAlign": "center"
+						},
+						{
+							"header": {
+								"name": "Header6",
+								"text": "店舗内検査"
+							},
+							"name": "Column6",
+							"dataSource": "This:C1470.店舗内検査",
+							"enterable": false,
+							"resizable": false,
+							"width": 75,
+							"footer": {
+								"name": "Footer6"
+							},
+							"truncateMode": "none",
+							"textAlign": "center"
+						},
+						{
+							"header": {
+								"name": "Header7",
+								"text": "ドライブスルー検査"
+							},
+							"name": "Column7",
+							"dataSource": "This:C1470.ドライブスルー検査",
+							"enterable": false,
+							"footer": {
+								"name": "Footer7"
+							},
+							"truncateMode": "none",
+							"textAlign": "center"
+						},
+						{
+							"header": {
+								"name": "Header8",
+								"text": "日時"
+							},
+							"name": "Column8",
+							"dataSource": "This:C1470.日時",
+							"enterable": false,
+							"resizable": false,
+							"footer": {
+								"name": "Footer8"
+							},
+							"truncateMode": "none"
+						},
+						{
+							"header": {
+								"name": "Header9",
+								"text": "特記事項"
+							},
+							"name": "Column9",
+							"enterable": false,
+							"dataSource": "This:C1470.特記事項",
+							"width": 10,
+							"footer": {
+								"name": "Footer9"
+							},
+							"truncateMode": "none"
+						}
+					]
+				},
+				"PDFs": {
+					"type": "dropdown",
+					"left": 27,
+					"top": 21,
+					"width": 145,
+					"height": 22,
+					"events": [
+						"onDataChange"
+					],
+					"focusable": false,
+					"method": "ObjectMethods/PDFs.4dm"
+				}
+			}
+		}
+	],
+	"geometryStamp": 34,
+	"menuBar": "Barre #1",
+	"method": "method.4dm",
+	"editor": {
+		"activeView": "View 1",
+		"defaultView": "View 1",
+		"views": {
+			"View 1": {}
+		}
+	}
+}
