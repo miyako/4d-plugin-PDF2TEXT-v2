@@ -59,6 +59,25 @@ If (BLOB size:C605($XML)#0)
 						If ($column#Null:C1517)
 							DOM GET XML ATTRIBUTE BY NAME:C728($text; "left"; $intValue)
 							$column.left:=$intValue
+							
+							//fill empty cells
+							If ($format.left#Null:C1517)
+								$l:=1
+								C_VARIANT:C1683($value)
+								For each ($value; $format.left)
+									If ($value#Null:C1517)
+										If ($column.left>$intValue)
+											If ($l>$columns.length)
+												If ($columns.length#0)
+													$columns.push(Null:C1517)
+												End if 
+											End if 
+										End if 
+									End if 
+									$l:=$l+1
+								End for each 
+							End if 
+							
 							DOM GET XML ATTRIBUTE BY NAME:C728($text; "height"; $intValue)
 							$column.height:=$intValue
 							DOM GET XML ATTRIBUTE BY NAME:C728($text; "width"; $intValue)

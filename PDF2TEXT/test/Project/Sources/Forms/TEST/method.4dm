@@ -13,6 +13,14 @@ Case of
 			
 		End for each 
 		
-		Form:C1466.data:=New object:C1471("col"; Null:C1517; "pos"; Null:C1517; "item"; Null:C1517; "sel"; Null:C1517)
+		Form:C1466.事業所名:=OBJECT Get pointer:C1124(Object named:K67:5; "Column1")
+		Form:C1466.所在地:=OBJECT Get pointer:C1124(Object named:K67:5; "Column2")
+		Form:C1466.電話番号:=OBJECT Get pointer:C1124(Object named:K67:5; "Column3")
+		Form:C1466.PCR検査:=OBJECT Get pointer:C1124(Object named:K67:5; "Column4")
+		Form:C1466.抗原定性検査:=OBJECT Get pointer:C1124(Object named:K67:5; "Column5")
+		Form:C1466.店舗内検査:=OBJECT Get pointer:C1124(Object named:K67:5; "Column6")
+		Form:C1466.ドライブスルー検査:=OBJECT Get pointer:C1124(Object named:K67:5; "Column7")
+		Form:C1466.日時:=OBJECT Get pointer:C1124(Object named:K67:5; "Column8")
+		Form:C1466.特記事項:=OBJECT Get pointer:C1124(Object named:K67:5; "Column9")
 		
 End case 

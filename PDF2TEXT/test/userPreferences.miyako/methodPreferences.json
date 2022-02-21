@@ -117,49 +117,40 @@
 		"stamp": "2019-07-07T00:13:49.000Z"
 	},
 	"Sources/Methods/parse_pdf.4dm": {
-		"startSelection": 25,
-		"endSelection": 25,
-		"firstSelectedLine": 9,
-		"lastSelectedLine": 9,
+		"startSelection": 16,
+		"endSelection": 16,
+		"firstSelectedLine": 66,
+		"lastSelectedLine": 66,
 		"folding": [],
 		"bookmarks": [],
-		"stamp": "2022-02-20T23:01:54.298Z"
+		"stamp": "2022-02-21T00:36:37.151Z"
 	},
 	"Sources/Methods/reduce_pdf.4dm": {
 		"startSelection": 0,
 		"endSelection": 0,
-		"firstSelectedLine": 41,
-		"lastSelectedLine": 41,
+		"firstSelectedLine": 26,
+		"lastSelectedLine": 26,
 		"folding": [],
 		"bookmarks": [],
 		"stamp": "2022-02-20T22:45:58.363Z"
 	},
 	"Sources/Forms/TEST/method.4dm": {
-		"startSelection": 74,
-		"endSelection": 74,
-		"firstSelectedLine": 15,
-		"lastSelectedLine": 15,
+		"startSelection": 54,
+		"endSelection": 0,
+		"firstSelectedLine": 23,
+		"lastSelectedLine": 14,
 		"folding": [],
 		"bookmarks": [],
-		"stamp": "2022-02-20T22:34:52.234Z"
-	},
-	"Sources/Methods/format_佐賀.4dm": {
-		"startSelection": 66,
-		"endSelection": 66,
-		"firstSelectedLine": 19,
-		"lastSelectedLine": 19,
-		"folding": [],
-		"bookmarks": [],
-		"stamp": "2022-02-20T22:29:17.229Z"
+		"stamp": "2022-02-20T23:27:27.449Z"
 	},
 	"Sources/Forms/TEST/ObjectMethods/PDFs.4dm": {
-		"startSelection": 63,
-		"endSelection": 63,
-		"firstSelectedLine": 5,
-		"lastSelectedLine": 5,
+		"startSelection": 48,
+		"endSelection": 48,
+		"firstSelectedLine": 7,
+		"lastSelectedLine": 7,
 		"folding": [],
 		"bookmarks": [],
-		"stamp": "2022-02-20T22:38:34.237Z"
+		"stamp": "2022-02-21T00:26:28.044Z"
 	},
 	"Sources/Methods/process_pdf.4dm": {
 		"startSelection": 29,

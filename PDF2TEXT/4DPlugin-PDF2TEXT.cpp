@@ -1024,7 +1024,12 @@ void HtmlPage::coalesce()
         
         // if strings line up on left-hand side AND they are on subsequent lines, we need a line break
 
-        bool line_up_on_left_hand_side = (fabs(str1->xMin - str2->xMin) < 0.4) || ignoreHorizontalAlign;
+        bool line_up_on_left_hand_side = (fabs(str1->xMin - str2->xMin) < 0.4);
+        
+        if(ignoreHorizontalAlign) {
+            line_up_on_left_hand_side = (str1->xMin <= str2->xMin);
+        }
+        
         bool on_subsequent_lines = IS_CLOSER(str2->yMax, str1->yMax + space, str1->yMax);
     
         addLineBreak = !noMerge && line_up_on_left_hand_side && on_subsequent_lines;

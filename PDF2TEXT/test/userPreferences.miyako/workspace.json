@@ -1,22 +1,25 @@
 {
 	"editors": [
 		{
+			"type": "form",
+			"id": 218,
+			"previousTabType": "method",
+			"previousTabID": 2147483644,
+			"formName": "TEST"
+		},
+		{
 			"type": "method",
 			"id": 2147483644,
-			"previousTabType": "form",
-			"previousTabID": 218,
 			"codeDescriptor": {
 				"type": 1,
 				"methodName": "parse_pdf"
 			}
 		},
 		{
-			"type": "form",
-			"id": 218,
-			"formName": "TEST"
+			"type": "explorer"
 		},
 		{
-			"type": "explorer"
+			"type": "toolbox"
 		}
 	]
 }

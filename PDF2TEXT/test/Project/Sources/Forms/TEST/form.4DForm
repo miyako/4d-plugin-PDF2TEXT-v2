@@ -30,17 +30,18 @@
 					"width": 980,
 					"height": 477,
 					"events": [],
-					"listboxType": "collection",
+					"listboxType": "array",
 					"horizontalLineStroke": "transparent",
 					"verticalLineStroke": "transparent",
 					"resizingMode": "legacy",
 					"sizingX": "grow",
 					"sizingY": "grow",
-					"dataSource": "Form:C1466.data.col",
-					"currentItemSource": "Form:C1466.data.item",
-					"currentItemPositionSource": "Form:C1466.data.pos",
-					"selectedItemsSource": "Form:C1466.data.sel",
-					"rowHeight": "3em",
+					"rowHeight": "1em",
+					"movableRows": false,
+					"sortable": false,
+					"staticColumnCount": 9,
+					"verticalAlign": "middle",
+					"alternateFill": "automaticAlternate",
 					"columns": [
 						{
 							"header": {
@@ -52,8 +53,8 @@
 								"name": "Footer1"
 							},
 							"enterable": false,
-							"dataSource": "This:C1470.事業所名",
-							"truncateMode": "none"
+							"truncateMode": "none",
+							"rowHeightAuto": true
 						},
 						{
 							"header": {
@@ -61,12 +62,12 @@
 								"text": "所在地"
 							},
 							"name": "Column2",
-							"dataSource": "This:C1470.所在地",
 							"enterable": false,
 							"footer": {
 								"name": "Footer2"
 							},
-							"truncateMode": "none"
+							"truncateMode": "none",
+							"rowHeightAuto": true
 						},
 						{
 							"header": {
@@ -75,11 +76,11 @@
 							},
 							"name": "Column3",
 							"enterable": false,
-							"dataSource": "This:C1470.電話番号",
 							"footer": {
 								"name": "Footer3"
 							},
-							"truncateMode": "none"
+							"truncateMode": "none",
+							"rowHeightAuto": true
 						},
 						{
 							"header": {
@@ -88,14 +89,14 @@
 							},
 							"name": "Column4",
 							"enterable": false,
-							"dataSource": "This:C1470.PCR検査",
 							"resizable": false,
 							"width": 75,
 							"footer": {
 								"name": "Footer4"
 							},
+							"textAlign": "center",
 							"truncateMode": "none",
-							"textAlign": "center"
+							"rowHeightAuto": true
 						},
 						{
 							"header": {
@@ -104,14 +105,14 @@
 							},
 							"name": "Column5",
 							"enterable": false,
-							"dataSource": "This:C1470.抗原定性検査",
 							"resizable": false,
 							"width": 75,
 							"footer": {
 								"name": "Footer5"
 							},
+							"textAlign": "center",
 							"truncateMode": "none",
-							"textAlign": "center"
+							"rowHeightAuto": true
 						},
 						{
 							"header": {
@@ -119,15 +120,15 @@
 								"text": "店舗内検査"
 							},
 							"name": "Column6",
-							"dataSource": "This:C1470.店舗内検査",
 							"enterable": false,
 							"resizable": false,
 							"width": 75,
 							"footer": {
 								"name": "Footer6"
 							},
+							"textAlign": "center",
 							"truncateMode": "none",
-							"textAlign": "center"
+							"rowHeightAuto": true
 						},
 						{
 							"header": {
@@ -135,13 +136,13 @@
 								"text": "ドライブスルー検査"
 							},
 							"name": "Column7",
-							"dataSource": "This:C1470.ドライブスルー検査",
 							"enterable": false,
 							"footer": {
 								"name": "Footer7"
 							},
+							"textAlign": "center",
 							"truncateMode": "none",
-							"textAlign": "center"
+							"rowHeightAuto": true
 						},
 						{
 							"header": {
@@ -149,13 +150,13 @@
 								"text": "日時"
 							},
 							"name": "Column8",
-							"dataSource": "This:C1470.日時",
 							"enterable": false,
 							"resizable": false,
 							"footer": {
 								"name": "Footer8"
 							},
-							"truncateMode": "none"
+							"truncateMode": "none",
+							"rowHeightAuto": true
 						},
 						{
 							"header": {
@@ -164,12 +165,12 @@
 							},
 							"name": "Column9",
 							"enterable": false,
-							"dataSource": "This:C1470.特記事項",
 							"width": 10,
 							"footer": {
 								"name": "Footer9"
 							},
-							"truncateMode": "none"
+							"truncateMode": "none",
+							"rowHeightAuto": true
 						}
 					]
 				},
@@ -188,7 +189,7 @@
 			}
 		}
 	],
-	"geometryStamp": 34,
+	"geometryStamp": 42,
 	"menuBar": "Barre #1",
 	"method": "method.4dm",
 	"editor": {
