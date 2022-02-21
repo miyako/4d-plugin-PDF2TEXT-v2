@@ -180,7 +180,7 @@ static void PDF_Get_XML(PA_PluginParameters params) {
 
     bool rawLineBreak = false;
     double lineBreakThreshold = 0.7;
-    
+    double horizontalBreakThreshold = 0.7;
     
 #if VERSIONMAC
     std::unique_ptr<PDFDoc> doc;
@@ -261,6 +261,10 @@ static void PDF_Get_XML(PA_PluginParameters params) {
                 lineBreakThreshold = ob_get_n(options, L"lineBreakThreshold");
             }
             
+            if(ob_is_defined(options, L"horizontalBreakThreshold")) {
+                horizontalBreakThreshold = ob_get_n(options, L"horizontalBreakThreshold");
+            }
+
         }
         
         std::string temporaryFolder;
@@ -719,11 +723,12 @@ void HtmlString::endString()
 // HtmlPage
 //------------------------------------------------------------------------
 
-HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA, bool ignoreFontA)
+HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA, bool ignoreFontA, double horizontalBreakThresholdA)
 {
     noRoundedCoordinates = noRoundedCoordinatesA;
     wordBreakThreshold = wordBreakThresholdA;
 	lineBreakThreshold = lineBreakThresholdA;
+    horizontalBreakThreshold = horizontalBreakThresholdA;
 	rawLineBreak = rawLineBreakA;
     rawOrder = rawOrderA;
 	ignoreHorizontalAlign = ignoreHorizontalAlignA;
@@ -1027,7 +1032,7 @@ void HtmlPage::coalesce()
         bool line_up_on_left_hand_side = (fabs(str1->xMin - str2->xMin) < 0.4);
         
         if(ignoreHorizontalAlign) {
-            line_up_on_left_hand_side = (str1->xMin <= str2->xMin);
+            line_up_on_left_hand_side = true;
         }
         
         bool on_subsequent_lines = IS_CLOSER(str2->yMax, str1->yMax + space, str1->yMax);
@@ -1046,10 +1051,10 @@ void HtmlPage::coalesce()
                 
         bool same_text_direction = (str1->dir == str2->dir);
         bool same_font_or_not_complex_mode = (!complexMode || (hfont1->isEqualIgnoreBold(*hfont2)));
-
+        
         // in complex mode fonts must be the same, in other modes fonts do not metter
         bool same_paragraph = (vertSpace >= 0 && vertSpace < (lineBreakThreshold * space) && addLineBreak);
-        bool single_horizontal_space_or_less = (horSpace > -0.5 * space && horSpace < space);
+        bool single_horizontal_space_or_less = (horSpace > -0.5 * space && horSpace < (space * horizontalBreakThreshold));
         bool at_least_50_percent_vertical_overlap = (rawOrder && vertOverlap > 0.5 * space);
         bool left_to_right = (!rawOrder && str2->yMin < str1->yMax);
         if (ignoreFont && same_paragraph) same_font_or_not_complex_mode = true;
@@ -1612,7 +1617,7 @@ void HtmlOutputDev::doFrame(int firstPage)
     fclose(fContentsFrame);
 }
 
-HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrderA, int firstPage, bool outline, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA, bool ignoreFontA)
+HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrderA, int firstPage, bool outline, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA, bool ignoreFontA, double horizontalBreakThresholdA)
 {
     bool complexMode = true;
     bool xml = true;
@@ -1622,6 +1627,7 @@ HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char
     
     rawLineBreak = rawLineBreakA;
     lineBreakThreshold = lineBreakThresholdA;
+    horizontalBreakThreshold = horizontalBreakThresholdA;
 
 	catalog = catalogA;
 	rawOrder = rawOrderA;
@@ -1638,7 +1644,7 @@ HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char
     // pageNum=firstPage;
     // open file
     needClose = false;
-    pages = new HtmlPage(rawOrder, wordBreakThresholdA, noRoundedCoordinatesA, lineBreakThresholdA, rawLineBreakA, ignoreHorizontalAlignA, ignoreFontA);
+    pages = new HtmlPage(rawOrder, wordBreakThresholdA, noRoundedCoordinatesA, lineBreakThresholdA, rawLineBreakA, ignoreHorizontalAlignA, ignoreFontA, horizontalBreakThresholdA);
 
 #if VERSIONMAC
     glMetaVars.push_back(new HtmlMetaVar("generator", "pdftohtml 0.36"));

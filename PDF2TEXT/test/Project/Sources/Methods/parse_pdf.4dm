@@ -57,6 +57,9 @@ If (BLOB size:C605($XML)#0)
 							CLEAR VARIABLE:C89($column)
 						End if 
 						If ($column#Null:C1517)
+							
+							
+							
 							DOM GET XML ATTRIBUTE BY NAME:C728($text; "left"; $intValue)
 							$column.left:=$intValue
 							
@@ -66,11 +69,11 @@ If (BLOB size:C605($XML)#0)
 								C_VARIANT:C1683($value)
 								For each ($value; $format.left)
 									If ($value#Null:C1517)
-										If ($column.left>$intValue)
+										If ($column.left>$value)
 											If ($l>$columns.length)
-												If ($columns.length#0)
-													$columns.push(Null:C1517)
-												End if 
+												//If ($columns.length#0)
+												$columns.push(Null:C1517)
+												//End if 
 											End if 
 										End if 
 									End if 
@@ -84,6 +87,7 @@ If (BLOB size:C605($XML)#0)
 							$column.width:=$intValue
 							DOM GET XML ELEMENT VALUE:C731($text; $stringValue)
 							$column.value:=$stringValue
+							
 							$columns.push($column)
 						End if 
 					End for 

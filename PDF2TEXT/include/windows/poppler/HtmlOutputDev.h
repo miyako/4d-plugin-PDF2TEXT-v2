@@ -112,7 +112,7 @@ class HtmlPage
 {
 public:
     // Constructor.
-	HtmlPage(bool rawOrder, double wordBreakThreshold, bool noRoundedCoordinates, double lineBreakThreshold, bool rawLineBreak, bool ignoreHorizontalAlign, bool ignoreFont);
+	HtmlPage(bool rawOrder, double wordBreakThreshold, bool noRoundedCoordinates, double lineBreakThreshold, bool rawLineBreak, bool ignoreHorizontalAlign, bool ignoreFont, double horizontalBreakThreshold);
 
     // Destructor.
     ~HtmlPage();
@@ -167,6 +167,7 @@ private:
 	bool rawLineBreak;
 	bool ignoreHorizontalAlign;
     bool ignoreFont;
+    double horizontalBreakThreshold;
     
     HtmlString *curStr; // currently active string
 
@@ -225,7 +226,7 @@ public:
     // 8-bit ISO Latin-1.  <useASCII7> should also be set for Japanese
     // (EUC-JP) text.  If <rawOrder> is true, the text is kept in content
     // stream order.
-	HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrder, int firstPage = 1, bool outline = false, double wordBreakThresholdA = 1, bool noRoundedCoordinatesA = true, double lineBreakThresholdA = 0.7, bool rawLineBreakA = false, bool ignoreHorizontalAlignA = false, bool ignoreFontA = false);
+    HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrder, int firstPage = 1, bool outline = false, double wordBreakThresholdA = 1, bool noRoundedCoordinatesA = true, double lineBreakThresholdA = 0.7, bool rawLineBreakA = false, bool ignoreHorizontalAlignA = false, bool ignoreFontA = false, double horizontalBreakThreshold = 0.7);
 
     // Destructor.
     ~HtmlOutputDev() override;
@@ -324,6 +325,7 @@ private:
 	bool rawLineBreak;
 	bool ignoreHorizontalAlign;
     bool ignoreFont;
+    double horizontalBreakThreshold;
     std::vector<std::string> backgroundImages;
     friend class HtmlPage;
 };
