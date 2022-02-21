@@ -2,24 +2,31 @@
 	"editors": [
 		{
 			"type": "method",
-			"id": 2147483645,
+			"id": 2147483646,
 			"previousTabType": "form",
 			"previousTabID": 218,
+			"codeDescriptor": {
+				"type": 1,
+				"methodName": "parse_pdf"
+			}
+		},
+		{
+			"type": "form",
+			"id": 218,
+			"previousTabType": "method",
+			"previousTabID": 2147483647,
+			"formName": "TEST"
+		},
+		{
+			"type": "method",
+			"id": 2147483647,
 			"codeDescriptor": {
 				"type": 1,
 				"methodName": "reduce_pdf"
 			}
 		},
 		{
-			"type": "form",
-			"id": 218,
-			"formName": "TEST"
-		},
-		{
 			"type": "explorer"
-		},
-		{
-			"type": "toolbox"
 		}
 	]
 }

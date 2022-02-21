@@ -20,7 +20,13 @@ Case of
 		Form:C1466.抗原定性検査:=OBJECT Get pointer:C1124(Object named:K67:5; "Column5")
 		Form:C1466.店舗内検査:=OBJECT Get pointer:C1124(Object named:K67:5; "Column6")
 		Form:C1466.ドライブスルー検査:=OBJECT Get pointer:C1124(Object named:K67:5; "Column7")
-		Form:C1466.日時:=OBJECT Get pointer:C1124(Object named:K67:5; "Column8")
-		Form:C1466.特記事項:=OBJECT Get pointer:C1124(Object named:K67:5; "Column9")
+		Form:C1466.診療:=OBJECT Get pointer:C1124(Object named:K67:5; "Column8")
+		Form:C1466.検査:=OBJECT Get pointer:C1124(Object named:K67:5; "Column9")
+		Form:C1466.日時:=OBJECT Get pointer:C1124(Object named:K67:5; "Column10")
+		Form:C1466.特記事項:=OBJECT Get pointer:C1124(Object named:K67:5; "Column11")
+		
+		OBJECT SET ENABLED:C1123(*; "open"; False:C215)
+		
+		Form:C1466.GetName:=Formula:C1597(TEST_getName(Form:C1466.PDFs))
 		
 End case 

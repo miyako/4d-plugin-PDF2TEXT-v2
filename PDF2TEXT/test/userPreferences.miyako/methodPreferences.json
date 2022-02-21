@@ -98,15 +98,6 @@
 		"bookmarks": [],
 		"stamp": "2019-07-02T23:15:40.975Z"
 	},
-	"Sources/Methods/TEST.4dm": {
-		"startSelection": 47,
-		"endSelection": 47,
-		"firstSelectedLine": 0,
-		"lastSelectedLine": 0,
-		"folding": [],
-		"bookmarks": [],
-		"stamp": "2022-02-20T22:35:26.286Z"
-	},
 	"Sources/Methods/TEST_v17.4dm": {
 		"startSelection": 0,
 		"endSelection": 0,
@@ -117,48 +108,75 @@
 		"stamp": "2019-07-07T00:13:49.000Z"
 	},
 	"Sources/Methods/parse_pdf.4dm": {
-		"startSelection": 36,
-		"endSelection": 36,
-		"firstSelectedLine": 8,
-		"lastSelectedLine": 8,
+		"startSelection": 18,
+		"endSelection": 28,
+		"firstSelectedLine": 96,
+		"lastSelectedLine": 96,
 		"folding": [],
 		"bookmarks": [],
-		"stamp": "2022-02-21T02:00:36.864Z"
+		"stamp": "2022-02-21T08:01:47.000Z"
 	},
 	"Sources/Methods/reduce_pdf.4dm": {
-		"startSelection": 12,
-		"endSelection": 12,
-		"firstSelectedLine": 9,
-		"lastSelectedLine": 9,
+		"startSelection": 33,
+		"endSelection": 33,
+		"firstSelectedLine": 0,
+		"lastSelectedLine": 0,
 		"folding": [],
 		"bookmarks": [],
-		"stamp": "2022-02-21T01:54:07.079Z"
+		"stamp": "2022-02-21T09:56:43.424Z"
 	},
 	"Sources/Forms/TEST/method.4dm": {
-		"startSelection": 54,
+		"startSelection": 0,
 		"endSelection": 0,
-		"firstSelectedLine": 23,
+		"firstSelectedLine": 14,
 		"lastSelectedLine": 14,
 		"folding": [],
 		"bookmarks": [],
-		"stamp": "2022-02-20T23:27:27.449Z"
+		"stamp": "2022-02-21T06:57:54.902Z"
 	},
 	"Sources/Forms/TEST/ObjectMethods/PDFs.4dm": {
-		"startSelection": 48,
-		"endSelection": 48,
-		"firstSelectedLine": 7,
-		"lastSelectedLine": 7,
+		"startSelection": 11,
+		"endSelection": 11,
+		"firstSelectedLine": 30,
+		"lastSelectedLine": 30,
 		"folding": [],
 		"bookmarks": [],
-		"stamp": "2022-02-21T00:26:28.044Z"
+		"stamp": "2022-02-21T06:49:52.236Z"
 	},
-	"Sources/Methods/process_pdf.4dm": {
+	"Trash/Methods/(process_pdf).4dm": {
 		"startSelection": 29,
-		"endSelection": 29,
+		"endSelection": 0,
 		"firstSelectedLine": 9,
 		"lastSelectedLine": 9,
 		"folding": [],
 		"bookmarks": [],
 		"stamp": "2022-02-20T22:33:53.713Z"
+	},
+	"Sources/Forms/TEST/ObjectMethods/open.4dm": {
+		"startSelection": 0,
+		"endSelection": 0,
+		"firstSelectedLine": 3,
+		"lastSelectedLine": 3,
+		"folding": [],
+		"bookmarks": [],
+		"stamp": "2022-02-21T06:49:52.088Z"
+	},
+	"Sources/Methods/TEST_getName.4dm": {
+		"startSelection": 17,
+		"endSelection": 17,
+		"firstSelectedLine": 5,
+		"lastSelectedLine": 5,
+		"folding": [],
+		"bookmarks": [],
+		"stamp": "2022-02-21T06:57:30.880Z"
+	},
+	"Trash/Methods/(TEST).4dm": {
+		"startSelection": 0,
+		"endSelection": 0,
+		"firstSelectedLine": 4,
+		"lastSelectedLine": 4,
+		"folding": [],
+		"bookmarks": [],
+		"stamp": "2022-02-20T22:35:26.286Z"
 	}
 }

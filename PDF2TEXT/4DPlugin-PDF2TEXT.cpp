@@ -149,7 +149,8 @@ static void PDF_Get_XML(PA_PluginParameters params) {
     bool noRoundedCoordinates = true;
 	bool ignoreHorizontalAlign = false;
     bool ignoreFont = false;
-
+    bool ignoreBoldItalic = false;
+    
     std::string ownerPassword;
     std::string userPassword;
     
@@ -261,6 +262,10 @@ static void PDF_Get_XML(PA_PluginParameters params) {
                 lineBreakThreshold = ob_get_n(options, L"lineBreakThreshold");
             }
             
+            if(ob_is_defined(options, L"ignoreBoldItalic")) {
+                ignoreBoldItalic = ob_get_b(options, L"ignoreBoldItalic");
+            }
+
             if(ob_is_defined(options, L"horizontalBreakThreshold")) {
                 horizontalBreakThreshold = ob_get_n(options, L"horizontalBreakThreshold");
             }
@@ -360,7 +365,7 @@ static void PDF_Get_XML(PA_PluginParameters params) {
                                         date ? date->c_str() : nullptr,
                                         rawOrder, firstPage, doOutline,
                                         wordBreakThreshold, noRoundedCoordinates,
-                                        lineBreakThreshold, rawLineBreak, ignoreHorizontalAlign, ignoreFont);
+                                        lineBreakThreshold, rawLineBreak, ignoreHorizontalAlign, ignoreFont, horizontalBreakThreshold, ignoreBoldItalic);
             delete docTitle;
             if (author) {
                 delete author;
@@ -723,7 +728,7 @@ void HtmlString::endString()
 // HtmlPage
 //------------------------------------------------------------------------
 
-HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA, bool ignoreFontA, double horizontalBreakThresholdA)
+HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA, bool ignoreFontA, double horizontalBreakThresholdA, bool ignoreBoldItalicA)
 {
     noRoundedCoordinates = noRoundedCoordinatesA;
     wordBreakThreshold = wordBreakThresholdA;
@@ -733,6 +738,7 @@ HtmlPage::HtmlPage(bool rawOrderA, double wordBreakThresholdA, bool noRoundedCoo
     rawOrder = rawOrderA;
 	ignoreHorizontalAlign = ignoreHorizontalAlignA;
     ignoreFont = ignoreFontA;
+    ignoreBoldItalic = ignoreBoldItalicA;
     
     curStr = nullptr;
     yxStrings = nullptr;
@@ -1009,10 +1015,14 @@ void HtmlPage::coalesce()
     str1 = yxStrings;
 
     const HtmlFont *hfont1 = getFont(str1);
-    if (hfont1->isBold())
-        str1->htext->insert(0, "<b>", 3);
-    if (hfont1->isItalic())
-        str1->htext->insert(0, "<i>", 3);
+    
+    if(!ignoreBoldItalic) {
+        if (hfont1->isBold())
+            str1->htext->insert(0, "<b>", 3);
+        if (hfont1->isItalic())
+            str1->htext->insert(0, "<i>", 3);
+    }
+    
     if (str1->getLink() != nullptr) {
         GooString *ls = str1->getLink()->getLinkStart();
         str1->htext->insert(0, ls);
@@ -1138,16 +1148,23 @@ void HtmlPage::coalesce()
             bool finish_a = switch_links && hlink1 != nullptr;
             bool finish_italic = hfont1->isItalic() && (!hfont2->isItalic() || finish_a);
             bool finish_bold = hfont1->isBold() && (!hfont2->isBold() || finish_a || finish_italic);
-            CloseTags(str1->htext, finish_a, finish_italic, finish_bold);
+            
+            if(!ignoreBoldItalic) {
+                CloseTags(str1->htext, finish_a, finish_italic, finish_bold);
+            }
+            
             if (switch_links && hlink2 != nullptr) {
                 GooString *ls = hlink2->getLinkStart();
                 str1->htext->append(ls);
                 delete ls;
             }
-            if ((!hfont1->isItalic() || finish_italic) && hfont2->isItalic())
-                str1->htext->append("<i>", 3);
-            if ((!hfont1->isBold() || finish_bold) && hfont2->isBold())
-                str1->htext->append("<b>", 3);
+            
+            if(!ignoreBoldItalic) {
+                if ((!hfont1->isItalic() || finish_italic) && hfont2->isItalic())
+                    str1->htext->append("<i>", 3);
+                if ((!hfont1->isBold() || finish_bold) && hfont2->isBold())
+                    str1->htext->append("<b>", 3);
+            }
 
             str1->htext->append(str2->htext);
             // str1 now contains href for link of str2 (if it is defined)
@@ -1166,7 +1183,10 @@ void HtmlPage::coalesce()
             bool finish_a = str1->getLink() != nullptr;
             bool finish_bold = hfont1->isBold();
             bool finish_italic = hfont1->isItalic();
-            CloseTags(str1->htext, finish_a, finish_italic, finish_bold);
+            
+            if(!ignoreBoldItalic) {
+                CloseTags(str1->htext, finish_a, finish_italic, finish_bold);
+            }
 
             str1->xMin = curX;
             str1->yMin = curY;
@@ -1174,10 +1194,14 @@ void HtmlPage::coalesce()
             curX = str1->xMin;
             curY = str1->yMin;
             hfont1 = hfont2;
-            if (hfont1->isBold())
-                str1->htext->insert(0, "<b>", 3);
-            if (hfont1->isItalic())
-                str1->htext->insert(0, "<i>", 3);
+            
+            if(!ignoreBoldItalic) {
+                if (hfont1->isBold())
+                    str1->htext->insert(0, "<b>", 3);
+                if (hfont1->isItalic())
+                    str1->htext->insert(0, "<i>", 3);
+            }
+            
             if (str1->getLink() != nullptr) {
                 GooString *ls = str1->getLink()->getLinkStart();
                 str1->htext->insert(0, ls);
@@ -1191,8 +1215,9 @@ void HtmlPage::coalesce()
     bool finish_bold = hfont1->isBold();
     bool finish_italic = hfont1->isItalic();
     bool finish_a = str1->getLink() != nullptr;
-    CloseTags(str1->htext, finish_a, finish_italic, finish_bold);
-
+    if(!ignoreBoldItalic) {
+        CloseTags(str1->htext, finish_a, finish_italic, finish_bold);
+    }
 #if 0 //~ for debugging
   for (str1 = yxStrings; str1; str1 = str1->yxNext) {
     printf("x=%3d..%3d  y=%3d..%3d  size=%2d ",
@@ -1617,7 +1642,7 @@ void HtmlOutputDev::doFrame(int firstPage)
     fclose(fContentsFrame);
 }
 
-HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrderA, int firstPage, bool outline, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA, bool ignoreFontA, double horizontalBreakThresholdA)
+HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char *title, const char *author, const char *keywords, const char *subject, const char *date, bool rawOrderA, int firstPage, bool outline, double wordBreakThresholdA, bool noRoundedCoordinatesA, double lineBreakThresholdA, bool rawLineBreakA, bool ignoreHorizontalAlignA, bool ignoreFontA, double horizontalBreakThresholdA, bool ignoreBoldItalicA)
 {
     bool complexMode = true;
     bool xml = true;
@@ -1628,7 +1653,8 @@ HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char
     rawLineBreak = rawLineBreakA;
     lineBreakThreshold = lineBreakThresholdA;
     horizontalBreakThreshold = horizontalBreakThresholdA;
-
+    ignoreBoldItalic = ignoreBoldItalicA;
+    
 	catalog = catalogA;
 	rawOrder = rawOrderA;
 
@@ -1644,7 +1670,7 @@ HtmlOutputDev::HtmlOutputDev(Catalog *catalogA, const char *fileName, const char
     // pageNum=firstPage;
     // open file
     needClose = false;
-    pages = new HtmlPage(rawOrder, wordBreakThresholdA, noRoundedCoordinatesA, lineBreakThresholdA, rawLineBreakA, ignoreHorizontalAlignA, ignoreFontA, horizontalBreakThresholdA);
+    pages = new HtmlPage(rawOrder, wordBreakThresholdA, noRoundedCoordinatesA, lineBreakThresholdA, rawLineBreakA, ignoreHorizontalAlignA, ignoreFontA, horizontalBreakThresholdA, ignoreBoldItalicA);
 
 #if VERSIONMAC
     glMetaVars.push_back(new HtmlMetaVar("generator", "pdftohtml 0.36"));

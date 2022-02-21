@@ -9,6 +9,7 @@ $options.noRoundedCoordinates:=False:C215
 $options.rawLineBreak:=True:C214
 $options.ignoreHorizontalAlign:=True:C214
 $options.ignoreFont:=True:C214
+$options.ignoreBoldItalic:=True:C214
 
 C_COLLECTION:C1488($data)
 $data:=New collection:C1472
@@ -58,8 +59,6 @@ If (BLOB size:C605($XML)#0)
 						End if 
 						If ($column#Null:C1517)
 							
-							
-							
 							DOM GET XML ATTRIBUTE BY NAME:C728($text; "left"; $intValue)
 							$column.left:=$intValue
 							
@@ -71,9 +70,7 @@ If (BLOB size:C605($XML)#0)
 									If ($value#Null:C1517)
 										If ($column.left>$value)
 											If ($l>$columns.length)
-												//If ($columns.length#0)
 												$columns.push(Null:C1517)
-												//End if 
 											End if 
 										End if 
 									End if 

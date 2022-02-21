@@ -26,8 +26,8 @@
 				"PDF": {
 					"type": "listbox",
 					"left": 20,
-					"top": 80,
-					"width": 980,
+					"top": 60,
+					"width": 1060,
 					"height": 477,
 					"events": [],
 					"listboxType": "array",
@@ -39,9 +39,9 @@
 					"rowHeight": "1em",
 					"movableRows": false,
 					"sortable": false,
-					"staticColumnCount": 9,
+					"staticColumnCount": 11,
 					"verticalAlign": "middle",
-					"alternateFill": "automaticAlternate",
+					"alternateFill": "automatic",
 					"columns": [
 						{
 							"header": {
@@ -146,26 +146,53 @@
 						},
 						{
 							"header": {
+								"name": "Header10",
+								"text": "診療"
+							},
+							"name": "Column8",
+							"footer": {
+								"name": "Footer10"
+							},
+							"width": 75,
+							"enterable": false,
+							"resizable": false
+						},
+						{
+							"header": {
+								"name": "Header11",
+								"text": "検査"
+							},
+							"name": "Column9",
+							"width": 75,
+							"enterable": false,
+							"resizable": false,
+							"footer": {
+								"name": "Footer11"
+							}
+						},
+						{
+							"header": {
 								"name": "Header8",
 								"text": "日時"
 							},
-							"name": "Column8",
+							"name": "Column10",
 							"enterable": false,
 							"resizable": false,
 							"footer": {
 								"name": "Footer8"
 							},
 							"truncateMode": "none",
-							"rowHeightAuto": true
+							"rowHeightAuto": true,
+							"width": 75
 						},
 						{
 							"header": {
 								"name": "Header9",
 								"text": "特記事項"
 							},
-							"name": "Column9",
+							"name": "Column11",
 							"enterable": false,
-							"width": 10,
+							"width": 0,
 							"footer": {
 								"name": "Footer9"
 							},
@@ -176,8 +203,8 @@
 				},
 				"PDFs": {
 					"type": "dropdown",
-					"left": 27,
-					"top": 21,
+					"left": 20,
+					"top": 20,
 					"width": 145,
 					"height": 22,
 					"events": [
@@ -185,11 +212,24 @@
 					],
 					"focusable": false,
 					"method": "ObjectMethods/PDFs.4dm"
+				},
+				"open": {
+					"type": "button",
+					"text": "PDFを開く",
+					"top": 20,
+					"left": 185,
+					"width": 136,
+					"height": 22,
+					"events": [
+						"onClick"
+					],
+					"focusable": false,
+					"method": "ObjectMethods/open.4dm"
 				}
 			}
 		}
 	],
-	"geometryStamp": 42,
+	"geometryStamp": 57,
 	"menuBar": "Barre #1",
 	"method": "method.4dm",
 	"editor": {
