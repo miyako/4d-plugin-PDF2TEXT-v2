@@ -33,6 +33,7 @@ xml:=PDF to XML(pdf;options)
 |options.lineBreakThreshold|Number|改行の閾値 (`0.7`)|
 |options.ignoreHorizontalAlign|Boolean|左揃えでなくても改行判定する (`false`)|
 |options.ignoreFont|Boolean|改行の場合はフォントの違いを無視する (`false`)|
+|options.ignoreBoldItalic|Boolean|`<b>` `<i>`タグを出力しない (`false`)|
 |xml|BLOB|エンコーディングは固定値 (`UTF-8`)|
 
 #### 常に有効なオプション
