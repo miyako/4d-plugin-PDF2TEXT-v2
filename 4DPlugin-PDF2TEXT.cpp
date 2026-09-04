@@ -228,17 +228,17 @@ static void PDF_Get_XML_impl(PA_PluginParameters params) {
             
             CUTF8String stringValue;
             if(ob_is_defined(options, L"ownerPassword")) {
-                ob_get_s(options, L"ownerPassword", &stringValue);
+                ob_get_a(options, L"ownerPassword", &stringValue);
                 ownerPassword = (const char *)stringValue.c_str();
             }
             
             if(ob_is_defined(options, L"userPassword")) {
-                ob_get_s(options, L"userPassword", &stringValue);
+                ob_get_a(options, L"userPassword", &stringValue);
                 userPassword = (const char *)stringValue.c_str();
             }
             
             if(ob_is_defined(options, L"imageFormat")) {
-                ob_get_s(options, L"imageFormat", &stringValue);
+                ob_get_a(options, L"imageFormat", &stringValue);
                 if(
                    (stringValue == (const uint8_t *)".jpg")
                    ||(stringValue == (const uint8_t *)".jpeg")) {

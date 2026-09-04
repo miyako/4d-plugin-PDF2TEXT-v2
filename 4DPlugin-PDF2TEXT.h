@@ -109,6 +109,10 @@ typedef PA_long32 method_id_t;
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 extern "C" BOOL poppler_DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved);
+// RPC_WSTR/UUID/RPC_S_OK/UuidCreate/UuidToString/RpcStringFree (used in generateUuid())
+// come from here -- previously not included at all, breaking the Windows build.
+#include <rpc.h>
+#pragma comment(lib, "Rpcrt4.lib")
 #endif
 
 #pragma mark -
