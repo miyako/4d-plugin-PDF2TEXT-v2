@@ -138,7 +138,7 @@ static void convert_path(std::string& path) {
 }
 #endif
 
-static void PDF_Get_XML(PA_PluginParameters params) {
+static void PDF_Get_XML_impl(PA_PluginParameters params) {
 
     std::vector<uint8_t> buf(0);
     
@@ -200,7 +200,7 @@ static void PDF_Get_XML(PA_PluginParameters params) {
         
         if(options) {
             
-            if(ob_is_defined(options, L"first")) {
+            if(ob_is_defined(options, L"firstPage")) {
                 firstPage = ob_get_n(options, L"firstPage");
                 if (firstPage < 1)
                     firstPage = 1;
@@ -402,12 +402,36 @@ static void PDF_Get_XML(PA_PluginParameters params) {
             }
         }
 
+#if VERSIONMAC
+        // doc is a std::unique_ptr<PDFDoc> here and releases itself automatically.
+#else
+        // createPDFDoc() returns an owning raw PDFDoc* on this platform that the
+        // caller must delete -- it was previously leaked here on every call.
+        if (doc) {
+            delete doc;
+            doc = nullptr;
+        }
+#endif
+
         delete fileName;
         
         PA_UnlockHandle(h);
     }
 
-    PA_ReturnBlob(params, &buf[0], (PA_long32)buf.size());
+    PA_ReturnBlob(params, buf.data(), (PA_long32)buf.size());
+}
+
+// PDF to XML(pdf;options) has a declared return value, so 4D's host will wait
+// for PA_ReturnBlob to be called. PluginMain's outer catch(...) swallows any
+// exception without calling it -- which would leave the host hanging forever,
+// not just failing loudly. This wrapper guarantees a return on every path,
+// including an exception thrown anywhere inside the real implementation.
+static void PDF_Get_XML(PA_PluginParameters params) {
+    try {
+        PDF_Get_XML_impl(params);
+    } catch (...) {
+        PA_ReturnBlob(params, nullptr, 0);
+    }
 }
 
 static GooString *getInfoString(Dict *infoDict, const char *key)
