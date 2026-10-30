@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/build-brotli.yml'
-      - 'build/brotli-check/**'
+      - '.github/brotli-check/**'
   workflow_dispatch:
   workflow_call:
 
@@ -49,8 +49,10 @@ jobs:
           cmake --install brotli-build --config Release
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           New-Item -ItemType Directory -Force vendor/lib/windows64 | Out-Null
-          Copy-Item brotli-out/lib/brotli*.lib vendor/lib/windows64/
-          cmake -S build/brotli-check -B brotli-check -A x64 `
+          foreach ($c in 'common','dec') {
+            Copy-Item "brotli-out/lib/brotli$c.lib" "vendor/lib/windows64/brotli$c-static.lib"
+          }
+          cmake -S .github/brotli-check -B brotli-check -A x64 `
             -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded "-DBROTLI_ROOT=$PWD/brotli-out"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build brotli-check --config Release
