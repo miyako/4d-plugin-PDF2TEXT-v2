@@ -404,3 +404,9 @@ $options.horizontalBreakThreshold:=.7   // undocumented in README; functional
 
 $xml:=PDF to XML($pdf; $options)
 ```
+
+---
+
+## Security
+
+The Windows x64 build statically links Brotli. It was updated to upstream Brotli 1.2.1 (pinned commit `db24a98aed38a16de78cc05ca15cdd8dc2a0d92d`, built with `/MT`) to fix CVE-2026-111497. See `.github/workflows/build-brotli.yml`.
